@@ -1,0 +1,2862 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="data:," />
+  <title>TinyTape</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111211;
+      --panel: #1a1c1b;
+      --panel-2: #242725;
+      --panel-3: #2c302d;
+      --line: #3a403c;
+      --text: #f2f0e8;
+      --muted: #aaa79c;
+      --soft: #d6d0bd;
+      --accent: #e7c76f;
+      --accent-2: #7cc6a4;
+      --danger: #e07868;
+      --ok: #6fcf97;
+      --paper: #fbf7ea;
+      --ink: #111;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px) 0 0 / 24px 24px,
+        linear-gradient(0deg, rgba(255,255,255,.02) 1px, transparent 1px) 0 0 / 24px 24px,
+        var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(26, 28, 27, .92);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .mark {
+      width: 34px;
+      height: 34px;
+      border: 1px solid #5a5546;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      background: #181815;
+      flex: 0 0 auto;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .status {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      min-height: 36px;
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--muted);
+      white-space: nowrap;
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex: 0 0 auto;
+    }
+
+    .dot.ok { background: var(--ok); }
+    .dot.bad { background: var(--danger); }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr) 330px;
+      height: calc(100vh - 64px);
+      min-height: 0;
+    }
+
+    .sidebar,
+    .rightbar {
+      min-height: 0;
+      overflow: auto;
+      border-right: 1px solid var(--line);
+      background: rgba(26, 28, 27, .7);
+    }
+
+    .rightbar {
+      border-right: 0;
+      border-left: 1px solid var(--line);
+    }
+
+    .section {
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 12px;
+    }
+
+    .section-title {
+      margin: 0;
+      color: var(--soft);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #151715;
+    }
+
+    .tab {
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 9px 10px;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      background: var(--panel-3);
+      color: var(--text);
+    }
+
+    .view-toggle {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #151715;
+    }
+
+    .view-btn {
+      min-height: 32px;
+      padding: 7px 9px;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      border-radius: 6px;
+    }
+
+    .view-btn.active {
+      background: var(--panel-3);
+      color: var(--text);
+    }
+
+    .mode-panel {
+      display: none;
+      gap: 12px;
+    }
+
+    .mode-panel.active {
+      display: grid;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    input[type="file"],
+    input[type="number"],
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px 11px;
+      outline: none;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    textarea {
+      min-height: 170px;
+      resize: vertical;
+      line-height: 1.45;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      min-height: 38px;
+    }
+
+    button:hover:not(:disabled) {
+      border-color: #605944;
+      background: var(--panel-3);
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .primary {
+      background: #2f2815;
+      border-color: #75612e;
+      color: #ffedb2;
+    }
+
+    .accent {
+      background: transparent;
+      border-color: #75612e;
+      color: var(--accent);
+    }
+
+    .accent:hover:not(:disabled) {
+      border-color: #8a743b;
+      background: #221d10;
+    }
+
+    .ghost {
+      background: transparent;
+    }
+
+    .danger {
+      border-color: #6a3b35;
+      color: #ffc1b8;
+      background: #2a1b19;
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .object-list {
+      display: grid;
+      gap: 7px;
+    }
+
+    .object-item {
+      display: grid;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+      padding: 8px;
+    }
+
+    .object-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .object-info {
+      border: 0;
+      background: transparent;
+      text-align: left;
+      padding: 2px;
+      min-height: 0;
+    }
+
+    .object-info:hover:not(:disabled) {
+      background: transparent;
+      border: 0;
+    }
+
+    .object-settings {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+    }
+
+    .object-settings label {
+      font-size: 11px;
+    }
+
+    .object-actions button.gear-active {
+      border-color: #8a743b;
+      color: var(--accent);
+    }
+
+    .object-item.active {
+      border-color: #8a743b;
+      background: #302a1a;
+    }
+
+    .object-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .object-meta {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .object-actions {
+      display: flex;
+      gap: 5px;
+    }
+
+    .object-actions button {
+      min-height: 30px;
+      padding: 5px 8px;
+    }
+
+    .range-line {
+      display: grid;
+      grid-template-columns: 1fr 52px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .range-value {
+      color: var(--soft);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stage {
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      padding: 26px;
+      display: grid;
+      place-items: start center;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(231,199,111,.08), transparent 32%),
+        radial-gradient(circle at 80% 30%, rgba(124,198,164,.08), transparent 36%),
+        #111211;
+    }
+
+    .tape-frame {
+      width: min(100%, 520px);
+      display: grid;
+      gap: 12px;
+    }
+
+    .ruler {
+      display: flex;
+      justify-content: space-between;
+      color: #7d786d;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+      padding: 10px 12px 0;
+    }
+
+    .canvas-shell {
+      border: 1px solid #67604f;
+      border-radius: 8px;
+      background: #0d0e0d;
+      padding: 14px;
+      box-shadow: 0 24px 60px rgba(0,0,0,.35);
+    }
+
+    .canvas-shell.drop-ready {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(231, 199, 111, .18), 0 24px 60px rgba(0,0,0,.35);
+    }
+
+    .canvas-scroll {
+      max-height: calc(100vh - 170px);
+      overflow: auto;
+      border-radius: 4px;
+      background: #d7d0bd;
+      padding: 12px;
+      overscroll-behavior: contain;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: var(--paper);
+      image-rendering: pixelated;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    canvas.dragging {
+      cursor: grabbing;
+    }
+
+    .tape-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .log {
+      height: 240px;
+      overflow: auto;
+      margin: 0;
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0d0f0d;
+      color: #d7d0bd;
+      font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      white-space: pre-wrap;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .log-clear {
+      min-height: 28px;
+      padding: 5px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .seg3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .field-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 1120px) {
+      .workspace {
+        grid-template-columns: 340px minmax(0, 1fr);
+      }
+
+      .rightbar {
+        grid-column: 1 / -1;
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+    }
+
+    @media (max-width: 760px) {
+      .topbar,
+      .workspace {
+        display: block;
+        height: auto;
+      }
+
+      body {
+        overflow: auto;
+      }
+
+      .top-actions {
+        margin-top: 12px;
+        justify-content: flex-start;
+      }
+
+      .sidebar,
+      .rightbar {
+        border: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .stage {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true">TT</div>
+        <div>
+          <h1>TinyTape</h1>
+          <div class="sub">Лента 384 px · печать по Bluetooth</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="status" title="Статус подключения">
+          <span class="dot" id="statusDot"></span>
+          <span id="statusText">Не подключен</span>
+        </div>
+        <button class="accent" id="connectBtn">Подключить</button>
+        <button id="disconnectBtn" disabled>Отключить</button>
+        <button class="primary" id="printBtn" disabled>Печатать</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="sidebar">
+        <section class="section">
+          <h2 class="section-title">Содержимое</h2>
+          <div class="tabs" role="tablist">
+            <button class="tab active" id="imageTab" type="button">Картинка</button>
+            <button class="tab" id="textTab" type="button">Текст</button>
+          </div>
+
+          <div class="mode-panel active" id="imagePanel">
+            <label>
+              Файл
+              <input id="fileInput" type="file" accept="image/*" multiple />
+            </label>
+          </div>
+
+          <div class="mode-panel" id="textPanel">
+            <label>
+              Текст
+              <textarea id="textInput" placeholder="Напечатать заметку, список, QR-подсказку..."></textarea>
+            </label>
+            <label>
+              Шрифт
+              <select id="fontSelect">
+                <option value="mono" selected>Моноширинный</option>
+                <option value="bold-mono">Моноширинный жирный</option>
+                <option value="sans">Гротеск</option>
+                <option value="bold-sans">Гротеск жирный</option>
+                <option value="serif">Антиква</option>
+              </select>
+            </label>
+            <div class="field-row">
+              <label>
+                Размер
+                <input id="fontSizeInput" type="number" min="12" max="72" step="1" value="28" />
+              </label>
+              <label>
+                Отступ
+                <input id="textPaddingInput" type="number" min="0" max="80" step="1" value="18" />
+              </label>
+            </div>
+            <div class="field-row">
+              <label>
+                Цвет текста
+                <select id="textColorSelect">
+                  <option value="black" selected>Чёрный</option>
+                  <option value="white">Белый</option>
+                </select>
+              </label>
+              <label>
+                Подложка
+                <select id="textPlateSelect">
+                  <option value="on" selected>Есть</option>
+                  <option value="off">Нет</option>
+                </select>
+              </label>
+            </div>
+            <button id="renderTextBtn" type="button">Добавить текст</button>
+            <div class="hint">Выбранный текстовый блок редактируется этими полями наживую.</div>
+          </div>
+
+          <button id="demoBtn" class="ghost" type="button">Загрузить демо</button>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">Объекты</h2>
+          <div class="object-list" id="objectList"></div>
+          <div class="button-grid">
+            <button id="stackBtn" type="button">В колонку</button>
+            <button id="clearObjectsBtn" type="button">Очистить</button>
+          </div>
+          <div class="hint">Можно загрузить сразу несколько файлов или бросить пачку картинок на ленту.</div>
+        </section>
+
+        <section class="section hidden" id="objectPanel">
+          <h2 class="section-title">Объект</h2>
+          <div class="button-grid">
+            <button id="fitWidthBtn" type="button">По ширине</button>
+            <button id="rotateBtn" type="button">Поворот 90°</button>
+          </div>
+          <label>
+            Масштаб
+            <div class="range-line">
+              <input id="scaleInput" type="range" min="10" max="300" step="1" value="100" />
+              <span class="range-value" id="scaleValue">100%</span>
+            </div>
+          </label>
+          <label>
+            Выравнивание
+            <div class="seg3">
+              <button id="alignLeftBtn" type="button">Слева</button>
+              <button id="alignCenterBtn" type="button">Центр</button>
+              <button id="alignRightBtn" type="button">Справа</button>
+            </div>
+          </label>
+          <div class="hint">Двигать и масштабировать объект можно прямо на предпросмотре (щипок или Ctrl+колесо). Настройки растра — под шестерёнкой в списке. Delete — удалить.</div>
+        </section>
+
+        <section class="section">
+          <h2 class="section-title">Лента</h2>
+          <label>
+            Длина области печати
+            <div class="range-line">
+              <input id="paperHeightInput" type="range" min="120" max="6000" step="1" value="560" />
+              <span class="range-value" id="paperHeightValue">560</span>
+            </div>
+          </label>
+          <button id="fitTapeBtn" type="button">По содержимому</button>
+          <div class="hint">Лента сама подгоняется под контент. Ползунок — если нужно добавить пустого места вручную.</div>
+        </section>
+      </aside>
+
+      <section class="stage" aria-label="Предпросмотр">
+        <div class="tape-frame">
+          <div class="canvas-shell" id="canvasShell">
+            <div class="view-toggle" aria-label="Режим предпросмотра">
+              <button class="view-btn" id="layoutViewBtn" type="button">Макет</button>
+              <button class="view-btn" id="rasterViewBtn" type="button">Растр</button>
+              <button class="view-btn active" id="printViewBtn" type="button" title="Как напечатается: с учётом расплывания точек">Печать</button>
+            </div>
+            <div class="ruler" aria-hidden="true">
+              <span>0</span><span>96</span><span>192</span><span>288</span><span>384</span>
+            </div>
+            <div class="canvas-scroll" id="canvasScroll">
+              <canvas id="preview" width="384" height="560"></canvas>
+            </div>
+          </div>
+          <div class="tape-meta">
+            <span id="bitmapInfo">384 x 560 px</span>
+            <span id="contentInfo">Нет содержимого</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="rightbar">
+        <section class="section">
+          <h2 class="section-title">Печать</h2>
+          <label>
+            Алгоритм растра
+            <select id="ditherSelect">
+              <option value="auto">Авто (по содержимому)</option>
+              <optgroup label="Функциональные">
+                <option value="threshold">Порог</option>
+                <option value="floyd-steinberg" selected>Floyd–Steinberg</option>
+                <option value="fs-serpentine">Floyd–Steinberg (серпантин)</option>
+                <option value="atkinson">Atkinson</option>
+                <option value="jjn">Jarvis–Judice–Ninke</option>
+                <option value="stucki">Stucki</option>
+                <option value="bayer4">Bayer 4×4</option>
+                <option value="bayer8">Bayer 8×8</option>
+                <option value="cluster">Кластерный (газетный)</option>
+                <option value="bluenoise">Blue noise</option>
+              </optgroup>
+              <optgroup label="Артовые">
+                <option value="lines">Линейный растр</option>
+                <option value="crosshatch">Штриховка</option>
+                <option value="rings">Концентрические кольца</option>
+                <option value="riemersma">Riemersma (зерно)</option>
+              </optgroup>
+            </select>
+          </label>
+          <div class="field-stack" id="thresholdGroup">
+            <label>
+              Порог черного
+              <div class="range-line">
+                <input id="thresholdInput" type="range" min="0" max="255" value="160" />
+                <span class="range-value" id="thresholdValue">160</span>
+              </div>
+            </label>
+            <button id="otsuBtn" type="button">Порог по Оцу</button>
+            <div class="hint">Метод Оцу: сам считает оптимальный порог по гистограмме — делит картинку на «светлое» и «тёмное» с максимальным контрастом.</div>
+          </div>
+          <label>
+            Контраст
+            <div class="range-line">
+              <input id="contrastInput" type="range" min="-80" max="120" value="15" />
+              <span class="range-value" id="contrastValue">15</span>
+            </div>
+          </label>
+          <label>
+            Яркость (компенсация теней)
+            <div class="range-line">
+              <input id="brightnessInput" type="range" min="-100" max="100" value="0" />
+              <span class="range-value" id="brightnessValue">0</span>
+            </div>
+          </label>
+          <label>
+            Нагрев
+            <div class="range-line">
+              <input id="energyInput" type="range" min="12000" max="65535" step="1" value="40000" />
+              <span class="range-value" id="energyValue">40000</span>
+            </div>
+          </label>
+          <label>
+            Режим печати
+            <select id="printSpeedSelect">
+              <option value="short" selected>Быстрый</option>
+              <option value="safe">Надёжный</option>
+              <option value="slow">Медленный</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="section">
+          <div class="section-head">
+            <h2 class="section-title">Журнал</h2>
+            <button id="clearBtn" class="ghost log-clear" type="button">Очистить</button>
+          </div>
+          <pre class="log" id="log"></pre>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module">
+    const PRINT_WIDTH = 384;
+    const SERVICE_UUIDS = [
+      0xae30,
+      0xaf30,
+    ];
+    const WRITE_UUID = 0xae01;
+    const NOTIFY_UUID = 0xae02;
+    const TEAR_OFF_FEED = 40;
+    const BATTERY_SERVICE = 0x180f;
+    const BATTERY_CHAR = 0x2a19;
+    const READY_NOTIFICATION = new Uint8Array([0x51, 0x78, 0xae, 0x01, 0x01, 0x00, 0x00, 0x00, 0xff]);
+    const PRINT_SPEEDS = {
+      short: { chunkSize: 100, chunkPause: 14, rowPause: 4, batchRows: 0, batchPause: 0 },
+      safe: { chunkSize: 60, chunkPause: 18, rowPause: 16, batchRows: 48, batchPause: 420 },
+      slow: { chunkSize: 40, chunkPause: 24, rowPause: 28, batchRows: 32, batchPause: 650 },
+    };
+
+    const els = {
+      statusDot: document.getElementById("statusDot"),
+      statusText: document.getElementById("statusText"),
+      connectBtn: document.getElementById("connectBtn"),
+      disconnectBtn: document.getElementById("disconnectBtn"),
+      printBtn: document.getElementById("printBtn"),
+      imageTab: document.getElementById("imageTab"),
+      textTab: document.getElementById("textTab"),
+      imagePanel: document.getElementById("imagePanel"),
+      textPanel: document.getElementById("textPanel"),
+      fileInput: document.getElementById("fileInput"),
+      fitWidthBtn: document.getElementById("fitWidthBtn"),
+      rotateBtn: document.getElementById("rotateBtn"),
+      alignLeftBtn: document.getElementById("alignLeftBtn"),
+      alignCenterBtn: document.getElementById("alignCenterBtn"),
+      alignRightBtn: document.getElementById("alignRightBtn"),
+      objectPanel: document.getElementById("objectPanel"),
+      objectList: document.getElementById("objectList"),
+      stackBtn: document.getElementById("stackBtn"),
+      clearObjectsBtn: document.getElementById("clearObjectsBtn"),
+      textInput: document.getElementById("textInput"),
+      fontSelect: document.getElementById("fontSelect"),
+      textColorSelect: document.getElementById("textColorSelect"),
+      textPlateSelect: document.getElementById("textPlateSelect"),
+      fontSizeInput: document.getElementById("fontSizeInput"),
+      textPaddingInput: document.getElementById("textPaddingInput"),
+      renderTextBtn: document.getElementById("renderTextBtn"),
+      paperHeightInput: document.getElementById("paperHeightInput"),
+      paperHeightValue: document.getElementById("paperHeightValue"),
+      fitTapeBtn: document.getElementById("fitTapeBtn"),
+      scaleInput: document.getElementById("scaleInput"),
+      scaleValue: document.getElementById("scaleValue"),
+      layoutViewBtn: document.getElementById("layoutViewBtn"),
+      rasterViewBtn: document.getElementById("rasterViewBtn"),
+      printViewBtn: document.getElementById("printViewBtn"),
+      canvasShell: document.getElementById("canvasShell"),
+      canvasScroll: document.getElementById("canvasScroll"),
+      preview: document.getElementById("preview"),
+      bitmapInfo: document.getElementById("bitmapInfo"),
+      contentInfo: document.getElementById("contentInfo"),
+      ditherSelect: document.getElementById("ditherSelect"),
+      otsuBtn: document.getElementById("otsuBtn"),
+      thresholdGroup: document.getElementById("thresholdGroup"),
+      thresholdInput: document.getElementById("thresholdInput"),
+      thresholdValue: document.getElementById("thresholdValue"),
+      contrastInput: document.getElementById("contrastInput"),
+      contrastValue: document.getElementById("contrastValue"),
+      brightnessInput: document.getElementById("brightnessInput"),
+      brightnessValue: document.getElementById("brightnessValue"),
+      energyInput: document.getElementById("energyInput"),
+      energyValue: document.getElementById("energyValue"),
+      printSpeedSelect: document.getElementById("printSpeedSelect"),
+      demoBtn: document.getElementById("demoBtn"),
+      clearBtn: document.getElementById("clearBtn"),
+      log: document.getElementById("log"),
+    };
+
+    const app = {
+      mode: "image",
+      paperHeight: Number(els.paperHeightInput.value),
+      items: [],
+      activeItemId: null,
+      settingsOpenId: null,
+      nextItemId: 1,
+      sourceCanvas: null,
+      sourceName: "",
+      sourceKind: "image",
+      previewMode: "print",
+      image: {
+        scale: 1,
+        x: 0,
+        y: 16,
+        rotation: 0,
+      },
+      drag: null,
+    };
+
+    let device = null;
+    let server = null;
+    let writeChar = null;
+    let notifyChar = null;
+    let readyResolve = null;
+    let readyReject = null;
+    let readyPromise = null;
+    let currentBitmap = null;
+    let batteryLevel = null;
+    let batterySupported = true;
+    let printing = false;
+    let manualDisconnect = false;
+    let reconnecting = false;
+    let showAllDevices = false;
+
+    window.addEventListener("error", (event) => {
+      log(`Ошибка страницы: ${event.message}`);
+      setStatus("Ошибка страницы", "bad");
+    });
+
+    window.addEventListener("unhandledrejection", (event) => {
+      const reason = event.reason && event.reason.message ? event.reason.message : String(event.reason);
+      log(`Необработанная ошибка: ${reason}`);
+      setStatus("Ошибка страницы", "bad");
+    });
+
+    function log(line) {
+      const stamp = new Date().toLocaleTimeString();
+      els.log.textContent += `[${stamp}] ${line}\n`;
+      els.log.scrollTop = els.log.scrollHeight;
+    }
+
+    function setStatus(text, mode = "idle") {
+      els.statusText.textContent = text;
+      els.statusDot.className = "dot";
+      if (mode === "ok") els.statusDot.classList.add("ok");
+      if (mode === "bad") els.statusDot.classList.add("bad");
+    }
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function withTimeout(promise, ms, message) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          const err = new Error(message || "Операция не ответила вовремя");
+          err.name = "TimeoutError";
+          reject(err);
+        }, ms);
+        promise.then(
+          (value) => { clearTimeout(timer); resolve(value); },
+          (err) => { clearTimeout(timer); reject(err); },
+        );
+      });
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function pluralRu(n, one, few, many) {
+      const m10 = n % 10;
+      const m100 = n % 100;
+      if (m10 === 1 && m100 !== 11) return one;
+      if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+      return many;
+    }
+
+    function setMode(mode) {
+      app.mode = mode;
+      els.imageTab.classList.toggle("active", mode === "image");
+      els.textTab.classList.toggle("active", mode === "text");
+      els.imagePanel.classList.toggle("active", mode === "image");
+      els.textPanel.classList.toggle("active", mode === "text");
+    }
+
+    function activeItem() {
+      return app.items.find((item) => item.id === app.activeItemId) || null;
+    }
+
+    function syncActiveItem() {
+      const item = activeItem();
+      app.sourceCanvas = item ? item.canvas : null;
+      app.sourceName = item ? item.name : "";
+      app.sourceKind = item ? item.kind : "image";
+      app.image = item || {
+        scale: 1,
+        x: 0,
+        y: 0,
+        rotation: 0,
+      };
+    }
+
+    function addItem(canvas, name, kind = "image") {
+      const y = nextInsertY();
+      const item = {
+        id: app.nextItemId,
+        name,
+        kind,
+        canvas,
+        scale: Math.min(1, PRINT_WIDTH / canvas.width),
+        x: 0,
+        y,
+        rotation: 0,
+        dither: "",
+      };
+      app.nextItemId += 1;
+      app.items.push(item);
+      selectItem(item.id);
+      return item;
+    }
+
+    function nextInsertY() {
+      if (!app.items.length) return 0;
+      return app.items.reduce((max, item) => {
+        return Math.max(max, item.y + item.canvas.height * item.scale);
+      }, 0) + 18;
+    }
+
+    function contentBottom() {
+      let bottom = 0;
+      for (const item of app.items) {
+        const drawW = item.canvas.width * item.scale;
+        const drawH = item.canvas.height * item.scale;
+        const rad = item.rotation * Math.PI / 180;
+        const boundH = drawW * Math.abs(Math.sin(rad)) + drawH * Math.abs(Math.cos(rad));
+        bottom = Math.max(bottom, item.y + drawH / 2 + boundH / 2);
+      }
+      return bottom;
+    }
+
+    function fitTapeToContent() {
+      if (!app.items.length) return;
+      app.paperHeight = clamp(Math.ceil(contentBottom()), 40, 6000);
+      els.paperHeightInput.value = String(app.paperHeight);
+    }
+
+    function selectItem(id) {
+      app.activeItemId = id;
+      const item = activeItem();
+      if (item && item.kind === "text" && item.text != null) {
+        populateTextPanel(item);
+        setMode("text");
+      } else if (item && item.kind === "image") {
+        setMode("image");
+      }
+      syncActiveItem();
+      renderObjectList();
+      renderTapeToCanvas();
+    }
+
+    function renderObjectList() {
+      if (!app.items.length) {
+        els.objectList.innerHTML = '<div class="hint">Пока нет объектов.</div>';
+        return;
+      }
+
+      els.objectList.innerHTML = "";
+      for (const item of app.items) {
+        const row = document.createElement("div");
+        row.className = `object-item${item.id === app.activeItemId ? " active" : ""}`;
+
+        const top = document.createElement("div");
+        top.className = "object-row";
+
+        const info = document.createElement("button");
+        info.className = "object-info";
+        info.type = "button";
+        info.title = "Выбрать объект";
+        info.innerHTML = `<div class="object-name"></div><div class="object-meta"></div>`;
+        info.querySelector(".object-name").textContent = item.name;
+        info.querySelector(".object-meta").textContent = `${item.canvas.width}x${item.canvas.height} · ${Math.round(item.scale * item.canvas.width / PRINT_WIDTH * 100)}% · ${ditherLabel(item)}`;
+        info.addEventListener("click", () => selectItem(item.id));
+
+        const actions = document.createElement("div");
+        actions.className = "object-actions";
+        const up = document.createElement("button");
+        up.type = "button";
+        up.textContent = "↑";
+        up.title = "Выше";
+        up.addEventListener("click", () => moveItem(item.id, -1));
+        const down = document.createElement("button");
+        down.type = "button";
+        down.textContent = "↓";
+        down.title = "Ниже";
+        down.addEventListener("click", () => moveItem(item.id, 1));
+        const gear = document.createElement("button");
+        gear.type = "button";
+        gear.textContent = "⚙";
+        gear.title = "Растр объекта";
+        if (item.id === app.settingsOpenId) gear.classList.add("gear-active");
+        gear.addEventListener("click", () => toggleSettings(item.id));
+        const del = document.createElement("button");
+        del.type = "button";
+        del.textContent = "×";
+        del.title = "Удалить";
+        del.addEventListener("click", () => removeItem(item.id));
+        actions.append(up, down, gear, del);
+
+        top.append(info, actions);
+        row.append(top);
+
+        if (item.id === app.settingsOpenId) {
+          const settings = document.createElement("div");
+          settings.className = "object-settings";
+          const label = document.createElement("label");
+          label.append("Растр объекта");
+          label.append(buildDitherSelect(item));
+          settings.append(label);
+          row.append(settings);
+        }
+
+        els.objectList.append(row);
+      }
+    }
+
+    function buildDitherSelect(item) {
+      const sel = document.createElement("select");
+      sel.add(new Option("Как в настройках печати", ""));
+      for (const node of els.ditherSelect.children) {
+        sel.appendChild(node.cloneNode(true));
+      }
+      sel.value = item.dither || "";
+      sel.addEventListener("change", () => {
+        item.dither = sel.value;
+        renderObjectList();
+        renderTapeToCanvas();
+      });
+      return sel;
+    }
+
+    function toggleSettings(id) {
+      app.settingsOpenId = app.settingsOpenId === id ? null : id;
+      selectItem(id);
+    }
+
+    function moveItem(id, direction) {
+      const index = app.items.findIndex((item) => item.id === id);
+      const next = index + direction;
+      if (index < 0 || next < 0 || next >= app.items.length) return;
+      const [item] = app.items.splice(index, 1);
+      app.items.splice(next, 0, item);
+      renderObjectList();
+      renderTapeToCanvas();
+    }
+
+    function removeItem(id) {
+      const index = app.items.findIndex((item) => item.id === id);
+      if (index < 0) return;
+      app.items.splice(index, 1);
+      if (app.settingsOpenId === id) app.settingsOpenId = null;
+      if (app.activeItemId === id) {
+        app.activeItemId = app.items[Math.min(index, app.items.length - 1)]?.id || null;
+      }
+      syncActiveItem();
+      renderObjectList();
+      renderTapeToCanvas();
+    }
+
+    function clearItems() {
+      app.items = [];
+      app.activeItemId = null;
+      app.settingsOpenId = null;
+      syncActiveItem();
+      renderObjectList();
+      renderTapeToCanvas();
+      log("Лента очищена.");
+    }
+
+    function stackItems() {
+      let y = 0;
+      for (const item of app.items) {
+        item.scale = Math.min(1, PRINT_WIDTH / item.canvas.width);
+        item.x = (PRINT_WIDTH - item.canvas.width * item.scale) / 2;
+        item.y = y;
+        item.rotation = 0;
+        y += item.canvas.height * item.scale + 18;
+      }
+      fitTapeToContent();
+      syncActiveItem();
+      renderObjectList();
+      renderTapeToCanvas();
+    }
+
+    function updateNumbers() {
+      syncActiveItem();
+      els.paperHeightValue.textContent = String(app.paperHeight);
+      const activeW = app.sourceCanvas ? app.sourceCanvas.width : PRINT_WIDTH;
+      const widthPct = Math.round(app.image.scale * activeW / PRINT_WIDTH * 100);
+      els.scaleValue.textContent = `${widthPct}%`;
+      els.thresholdValue.textContent = els.thresholdInput.value;
+      els.thresholdGroup.classList.toggle("hidden", !thresholdMatters());
+      els.contrastValue.textContent = els.contrastInput.value;
+      els.brightnessValue.textContent = els.brightnessInput.value;
+      const energyPct = Math.round((Number(els.energyInput.value) - 12000) / (65535 - 12000) * 100);
+      els.energyValue.textContent = `${energyPct}%`;
+      els.scaleInput.value = String(widthPct);
+      els.bitmapInfo.textContent = `${PRINT_WIDTH} x ${app.paperHeight} px ≈ ${Math.round(app.paperHeight / 8)} мм`;
+      const count = app.items.length;
+      const label = count ? `${count} ${pluralRu(count, "объект", "объекта", "объектов")}` : "Нет содержимого";
+      const modeLabel = { layout: "макет", raster: "растр", print: "печать" }[app.previewMode];
+      els.contentInfo.textContent = `${label} · ${modeLabel}`;
+      els.layoutViewBtn.classList.toggle("active", app.previewMode === "layout");
+      els.rasterViewBtn.classList.toggle("active", app.previewMode === "raster");
+      els.printViewBtn.classList.toggle("active", app.previewMode === "print");
+    }
+
+    function crc8(bytes) {
+      let crc = 0;
+      for (const byte of bytes) {
+        crc ^= byte;
+        for (let i = 0; i < 8; i += 1) {
+          crc = (crc & 0x80) ? (((crc << 1) ^ 0x07) & 0xff) : ((crc << 1) & 0xff);
+        }
+      }
+      return crc;
+    }
+
+    function buildPacket(commandId, payload) {
+      const body = new Uint8Array(payload);
+      const packet = new Uint8Array(2 + 1 + 1 + 2 + body.length + 1 + 1);
+      let i = 0;
+      packet[i++] = 0x51;
+      packet[i++] = 0x78;
+      packet[i++] = commandId;
+      packet[i++] = 0x00;
+      packet[i++] = body.length & 0xff;
+      packet[i++] = (body.length >> 8) & 0xff;
+      packet.set(body, i);
+      i += body.length;
+      packet[i++] = crc8(body);
+      packet[i++] = 0xff;
+      return packet;
+    }
+
+    function cmdSetQuality() {
+      return buildPacket(0xa4, [0x32]);
+    }
+
+    function cmdSetEnergy(value) {
+      return buildPacket(0xaf, [(value >> 8) & 0xff, value & 0xff]);
+    }
+
+    function cmdApplyEnergy() {
+      return buildPacket(0xbe, [0x01]);
+    }
+
+    function cmdGetState() {
+      return buildPacket(0xa3, [0x00]);
+    }
+
+    function cmdFeedPaper(amount) {
+      return buildPacket(0xbd, [amount & 0xff]);
+    }
+
+    function cmdSetPaper() {
+      return buildPacket(0xa1, [0x30, 0x00]);
+    }
+
+    function cmdLatticeStart() {
+      return new Uint8Array([
+        0x51, 0x78, 0xa6, 0x00, 0x0b, 0x00, 0xaa, 0x55, 0x17, 0x38,
+        0x44, 0x5f, 0x5f, 0x5f, 0x44, 0x38, 0x2c, 0xa1, 0xff,
+      ]);
+    }
+
+    function cmdLatticeEnd() {
+      return new Uint8Array([
+        0x51, 0x78, 0xa6, 0x00, 0x0b, 0x00, 0xaa, 0x55, 0x17, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17, 0x11, 0xff,
+      ]);
+    }
+
+    function rowPacket(rowBytes) {
+      return buildPacket(0xa2, Uint8Array.from(rowBytes));
+    }
+
+    function drawLayout(ctx, canvas) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.fillStyle = "#fbf7ea";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      for (const item of app.items) {
+        const source = item.canvas;
+        const drawW = source.width * item.scale;
+        const drawH = source.height * item.scale;
+        ctx.save();
+        ctx.translate(item.x + drawW / 2, item.y + drawH / 2);
+        ctx.rotate(item.rotation * Math.PI / 180);
+        ctx.drawImage(source, -drawW / 2, -drawH / 2, drawW, drawH);
+        ctx.restore();
+      }
+    }
+
+    function renderTapeToCanvas() {
+      const canvas = els.preview;
+      canvas.width = PRINT_WIDTH;
+      canvas.height = app.paperHeight;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      drawLayout(ctx, canvas);
+
+      if (app.previewMode === "raster") {
+        currentBitmap = rasterizeTape();
+        drawBitmapPreview(canvas, currentBitmap);
+      } else if (app.previewMode === "print") {
+        currentBitmap = rasterizeTape();
+        drawSimulatedPreview(canvas, currentBitmap);
+      } else {
+        currentBitmap = null;
+      }
+      drawSelectionOverlay(ctx);
+      updateNumbers();
+      updateUi();
+    }
+
+    function drawSelectionOverlay(ctx) {
+      const item = activeItem();
+      if (!item) return;
+      const drawW = item.canvas.width * item.scale;
+      const drawH = item.canvas.height * item.scale;
+      ctx.save();
+      ctx.translate(item.x + drawW / 2, item.y + drawH / 2);
+      ctx.rotate(item.rotation * Math.PI / 180);
+      ctx.setLineDash([7, 5]);
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "rgba(0,0,0,0.35)";
+      ctx.strokeRect(-drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(231,199,111,0.95)";
+      ctx.strokeRect(-drawW / 2, -drawH / 2, drawW, drawH);
+      ctx.restore();
+    }
+
+    let renderQueued = false;
+    function scheduleRender() {
+      if (renderQueued) return;
+      renderQueued = true;
+      requestAnimationFrame(() => {
+        renderQueued = false;
+        renderTapeToCanvas();
+      });
+    }
+
+    function buildPrintBitmap() {
+      return rasterizeTape();
+    }
+
+    function drawBitmapPreview(canvas, bitmap) {
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const image = ctx.createImageData(PRINT_WIDTH, bitmap.height);
+      for (let y = 0; y < bitmap.height; y += 1) {
+        const row = bitmap.rows[y];
+        for (let x = 0; x < PRINT_WIDTH; x += 1) {
+          const bit = row[x >> 3] & (1 << (x & 7));
+          const value = bit ? 0 : 255;
+          const i = (y * PRINT_WIDTH + x) * 4;
+          image.data[i] = value;
+          image.data[i + 1] = value;
+          image.data[i + 2] = value;
+          image.data[i + 3] = 255;
+        }
+      }
+      ctx.putImageData(image, 0, 0);
+    }
+
+    // Симуляция печати: расплывание точки (dot gain). Считаем локальную
+    // плотность чёрных точек, размываем её и прогоняем через кривую усиления,
+    // привязанную к нагреву — так превью приближается к реальному отпечатку.
+    function drawSimulatedPreview(canvas, bitmap) {
+      const w = PRINT_WIDTH;
+      const h = bitmap.height;
+      const n = w * h;
+      const cov = new Float32Array(n);
+      for (let y = 0; y < h; y += 1) {
+        const row = bitmap.rows[y];
+        const base = y * w;
+        for (let x = 0; x < w; x += 1) {
+          if (row[x >> 3] & (1 << (x & 7))) cov[base + x] = 1;
+        }
+      }
+
+      const R = 1;
+      const norm = 1 / (2 * R + 1);
+      const tmp = new Float32Array(n);
+      for (let y = 0; y < h; y += 1) {
+        const base = y * w;
+        let acc = 0;
+        for (let k = -R; k <= R; k += 1) acc += cov[base + Math.min(w - 1, Math.max(0, k))];
+        for (let x = 0; x < w; x += 1) {
+          tmp[base + x] = acc * norm;
+          acc += cov[base + Math.min(w - 1, x + R + 1)] - cov[base + Math.max(0, x - R)];
+        }
+      }
+      for (let x = 0; x < w; x += 1) {
+        let acc = 0;
+        for (let k = -R; k <= R; k += 1) acc += tmp[Math.min(h - 1, Math.max(0, k)) * w + x];
+        for (let y = 0; y < h; y += 1) {
+          cov[y * w + x] = acc * norm;
+          acc += tmp[Math.min(h - 1, y + R + 1) * w + x] - tmp[Math.max(0, y - R) * w + x];
+        }
+      }
+
+      const heatNorm = (Number(els.energyInput.value) - 12000) / (65535 - 12000);
+      const spread = 0.45 + heatNorm * 1.7;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const image = ctx.createImageData(w, h);
+      for (let i = 0; i < n; i += 1) {
+        const printed = 1 - Math.pow(1 - cov[i], 1 + spread);
+        const g = Math.round(255 * (1 - printed));
+        const j = i * 4;
+        image.data[j] = g;
+        image.data[j + 1] = g;
+        image.data[j + 2] = g;
+        image.data[j + 3] = 255;
+      }
+      ctx.putImageData(image, 0, 0);
+    }
+
+    function adjustedLuminance(r, g, b) {
+      let value = r * 0.299 + g * 0.587 + b * 0.114;
+      const contrast = Number(els.contrastInput.value);
+      const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+      value = factor * (value - 128) + 128;
+      const bright = Number(els.brightnessInput.value);
+      if (bright) {
+        const gamma = bright > 0 ? 1 / (1 + bright / 70) : 1 + (-bright) / 70;
+        value = 255 * Math.pow(clamp(value, 0, 255) / 255, gamma);
+      }
+      return clamp(Math.round(value), 0, 255);
+    }
+
+    function applyThreshold(values, threshold) {
+      const out = new Uint8Array(values.length);
+      for (let i = 0; i < values.length; i += 1) {
+        out[i] = values[i] < threshold ? 1 : 0;
+      }
+      return out;
+    }
+
+    const DIFFUSION_KERNELS = {
+      "floyd-steinberg": {
+        div: 16, serpentine: false,
+        taps: [[1, 0, 7], [-1, 1, 3], [0, 1, 5], [1, 1, 1]],
+      },
+      "fs-serpentine": {
+        div: 16, serpentine: true,
+        taps: [[1, 0, 7], [-1, 1, 3], [0, 1, 5], [1, 1, 1]],
+      },
+      "atkinson": {
+        div: 8, serpentine: false,
+        taps: [[1, 0, 1], [2, 0, 1], [-1, 1, 1], [0, 1, 1], [1, 1, 1], [0, 2, 1]],
+      },
+      "jjn": {
+        div: 48, serpentine: true,
+        taps: [
+          [1, 0, 7], [2, 0, 5],
+          [-2, 1, 3], [-1, 1, 5], [0, 1, 7], [1, 1, 5], [2, 1, 3],
+          [-2, 2, 1], [-1, 2, 3], [0, 2, 5], [1, 2, 3], [2, 2, 1],
+        ],
+      },
+      "stucki": {
+        div: 42, serpentine: true,
+        taps: [
+          [1, 0, 8], [2, 0, 4],
+          [-2, 1, 2], [-1, 1, 4], [0, 1, 8], [1, 1, 4], [2, 1, 2],
+          [-2, 2, 1], [-1, 2, 2], [0, 2, 4], [1, 2, 2], [2, 2, 1],
+        ],
+      },
+    };
+
+    const BAYER4 = [
+      0, 8, 2, 10,
+      12, 4, 14, 6,
+      3, 11, 1, 9,
+      15, 7, 13, 5,
+    ];
+
+    const BAYER8 = [
+      0, 32, 8, 40, 2, 34, 10, 42,
+      48, 16, 56, 24, 50, 18, 58, 26,
+      12, 44, 4, 36, 14, 46, 6, 38,
+      60, 28, 52, 20, 62, 30, 54, 22,
+      3, 35, 11, 43, 1, 33, 9, 41,
+      51, 19, 59, 27, 49, 17, 57, 25,
+      15, 47, 7, 39, 13, 45, 5, 37,
+      63, 31, 55, 23, 61, 29, 53, 21,
+    ];
+
+    const CLUSTER8 = [
+      24, 10, 12, 26, 35, 47, 49, 37,
+      8, 0, 2, 14, 45, 59, 61, 51,
+      22, 6, 4, 16, 43, 57, 63, 53,
+      30, 20, 18, 28, 33, 41, 55, 39,
+      34, 46, 48, 36, 25, 11, 13, 27,
+      44, 58, 60, 50, 9, 1, 3, 15,
+      42, 56, 62, 52, 23, 7, 5, 17,
+      32, 40, 54, 38, 31, 21, 19, 29,
+    ];
+
+    let blueNoiseMask = null;
+    function getBlueNoise() {
+      if (blueNoiseMask) return blueNoiseMask;
+      const size = 64;
+      const n = size * size;
+      const sigma = 1.9;
+      const kernel = new Float64Array(n);
+      for (let dy = 0; dy < size; dy += 1) {
+        for (let dx = 0; dx < size; dx += 1) {
+          const wx = Math.min(dx, size - dx);
+          const wy = Math.min(dy, size - dy);
+          kernel[dy * size + dx] = Math.exp(-(wx * wx + wy * wy) / (2 * sigma * sigma));
+        }
+      }
+      const energy = new Float64Array(n);
+      const rank = new Int32Array(n);
+      const placed = new Uint8Array(n);
+      for (let r = 0; r < n; r += 1) {
+        let best = -1;
+        let bestEnergy = Infinity;
+        for (let i = 0; i < n; i += 1) {
+          if (!placed[i] && energy[i] < bestEnergy) {
+            bestEnergy = energy[i];
+            best = i;
+          }
+        }
+        placed[best] = 1;
+        rank[best] = r;
+        const bx = best % size;
+        const by = (best / size) | 0;
+        for (let y = 0; y < size; y += 1) {
+          const dy = (y - by + size) % size;
+          for (let x = 0; x < size; x += 1) {
+            const dx = (x - bx + size) % size;
+            energy[y * size + x] += kernel[dy * size + dx];
+          }
+        }
+      }
+      blueNoiseMask = new Uint8Array(n);
+      for (let i = 0; i < n; i += 1) {
+        blueNoiseMask[i] = Math.round(((rank[i] + 0.5) / n) * 255);
+      }
+      return blueNoiseMask;
+    }
+
+    function errorDiffuse(values, w, h, threshold, kernel) {
+      const arr = Float32Array.from(values);
+      const out = new Uint8Array(values.length);
+      for (let y = 0; y < h; y += 1) {
+        const reverse = kernel.serpentine && (y & 1);
+        for (let step = 0; step < w; step += 1) {
+          const x = reverse ? w - 1 - step : step;
+          const i = y * w + x;
+          const oldVal = arr[i];
+          const newVal = oldVal < threshold ? 0 : 255;
+          out[i] = newVal === 0 ? 1 : 0;
+          const err = (oldVal - newVal) / kernel.div;
+          for (const [dx, dy, weight] of kernel.taps) {
+            const nx = x + (reverse ? -dx : dx);
+            const ny = y + dy;
+            if (nx >= 0 && nx < w && ny < h) {
+              arr[ny * w + nx] += err * weight;
+            }
+          }
+        }
+      }
+      return out;
+    }
+
+    function orderedDither(values, w, h, thresholdAt) {
+      const out = new Uint8Array(values.length);
+      for (let y = 0; y < h; y += 1) {
+        for (let x = 0; x < w; x += 1) {
+          const i = y * w + x;
+          out[i] = values[i] < thresholdAt(x, y) ? 1 : 0;
+        }
+      }
+      return out;
+    }
+
+    function lineRaster(values, w, h) {
+      const period = 8;
+      const center = (period - 1) / 2;
+      const out = new Uint8Array(values.length);
+      for (let y = 0; y < h; y += 1) {
+        const dist = Math.abs((y % period) - center) / center;
+        const t = (1 - dist) * 255;
+        for (let x = 0; x < w; x += 1) {
+          const v = values[y * w + x];
+          out[y * w + x] = (v < t || v < 12) ? 1 : 0;
+        }
+      }
+      return out;
+    }
+
+    function ringRaster(values, w, h) {
+      const period = 9;
+      const cx = w / 2;
+      const cy = h / 2;
+      const out = new Uint8Array(values.length);
+      for (let y = 0; y < h; y += 1) {
+        for (let x = 0; x < w; x += 1) {
+          const dist = Math.hypot(x - cx, y - cy);
+          const frac = (dist % period) / period;
+          const d = Math.abs(frac - 0.5) * 2;
+          const t = (1 - d) * 255;
+          const v = values[y * w + x];
+          out[y * w + x] = (v < t || v < 12) ? 1 : 0;
+        }
+      }
+      return out;
+    }
+
+    function crosshatchRaster(values, w, h) {
+      const period = 9;
+      const out = new Uint8Array(values.length);
+      for (let y = 0; y < h; y += 1) {
+        for (let x = 0; x < w; x += 1) {
+          const v = values[y * w + x];
+          let bit = 0;
+          if (v < 225 && (x + y) % period < 2) bit = 1;
+          if (v < 170 && ((x - y) % period + period) % period < 2) bit = 1;
+          if (v < 115 && x % period < 2) bit = 1;
+          if (v < 60 && y % period < 2) bit = 1;
+          if (v < 18) bit = 1;
+          out[y * w + x] = bit;
+        }
+      }
+      return out;
+    }
+
+    function hilbertD2XY(size, d) {
+      let x = 0;
+      let y = 0;
+      let t = d;
+      for (let s = 1; s < size; s *= 2) {
+        const rx = 1 & Math.floor(t / 2);
+        const ry = 1 & (t ^ rx);
+        if (ry === 0) {
+          if (rx === 1) {
+            x = s - 1 - x;
+            y = s - 1 - y;
+          }
+          const tmp = x;
+          x = y;
+          y = tmp;
+        }
+        x += s * rx;
+        y += s * ry;
+        t = Math.floor(t / 4);
+      }
+      return [x, y];
+    }
+
+    function riemersmaRaster(values, w, h, threshold) {
+      let size = 1;
+      while (size < Math.max(w, h)) size *= 2;
+      const historyLen = 16;
+      const weights = [];
+      let weightSum = 0;
+      for (let k = 0; k < historyLen; k += 1) {
+        const wgt = Math.exp(-k / 5);
+        weights.push(wgt);
+        weightSum += wgt;
+      }
+      for (let k = 0; k < historyLen; k += 1) {
+        weights[k] = (weights[k] / weightSum) * 0.95;
+      }
+      const errs = new Float64Array(historyLen);
+      let head = 0;
+      const out = new Uint8Array(values.length);
+      const total = size * size;
+      for (let d = 0; d < total; d += 1) {
+        const [x, y] = hilbertD2XY(size, d);
+        if (x >= w || y >= h) continue;
+        const i = y * w + x;
+        let acc = 0;
+        for (let k = 0; k < historyLen; k += 1) {
+          acc += errs[(head - 1 - k + historyLen * 2) % historyLen] * weights[k];
+        }
+        const v = values[i] + acc;
+        const newVal = v < threshold ? 0 : 255;
+        out[i] = newVal === 0 ? 1 : 0;
+        errs[head] = v - newVal;
+        head = (head + 1) % historyLen;
+      }
+      return out;
+    }
+
+    function ditherBits(values, w, h, mode, threshold) {
+      switch (mode) {
+        case "threshold":
+          return applyThreshold(values, threshold);
+        case "bayer4":
+          return orderedDither(values, w, h, (x, y) => ((BAYER4[(y & 3) * 4 + (x & 3)] + 0.5) / 16) * 255);
+        case "bayer8":
+          return orderedDither(values, w, h, (x, y) => ((BAYER8[(y & 7) * 8 + (x & 7)] + 0.5) / 64) * 255);
+        case "cluster":
+          return orderedDither(values, w, h, (x, y) => ((CLUSTER8[(y & 7) * 8 + (x & 7)] + 0.5) / 64) * 255);
+        case "bluenoise": {
+          const mask = getBlueNoise();
+          return orderedDither(values, w, h, (x, y) => mask[(y & 63) * 64 + (x & 63)]);
+        }
+        case "lines":
+          return lineRaster(values, w, h);
+        case "rings":
+          return ringRaster(values, w, h);
+        case "crosshatch":
+          return crosshatchRaster(values, w, h);
+        case "riemersma":
+          return riemersmaRaster(values, w, h, threshold);
+        default: {
+          const kernel = DIFFUSION_KERNELS[mode] || DIFFUSION_KERNELS["floyd-steinberg"];
+          return errorDiffuse(values, w, h, threshold, kernel);
+        }
+      }
+    }
+
+    function otsuFromHist(hist, total) {
+      let sum = 0;
+      for (let i = 0; i < 256; i += 1) sum += i * hist[i];
+      let sumB = 0;
+      let wB = 0;
+      let maxVar = 0;
+      let threshold = 127;
+      for (let i = 0; i < 256; i += 1) {
+        wB += hist[i];
+        if (!wB) continue;
+        const wF = total - wB;
+        if (!wF) break;
+        sumB += i * hist[i];
+        const mB = sumB / wB;
+        const mF = (sum - sumB) / wF;
+        const v = wB * wF * (mB - mF) * (mB - mF);
+        if (v > maxVar) {
+          maxVar = v;
+          threshold = i;
+        }
+      }
+      const mean = sum / total;
+      let totalVar = 0;
+      for (let i = 0; i < 256; i += 1) totalVar += hist[i] * (i - mean) * (i - mean);
+      const separability = totalVar > 0 ? maxVar / (total * totalVar) : 0;
+      return { threshold, separability };
+    }
+
+    function analyzeCanvas(source) {
+      const sw = Math.max(1, Math.min(192, source.width));
+      const sh = Math.max(1, Math.round(source.height * sw / source.width));
+      const probe = document.createElement("canvas");
+      probe.width = sw;
+      probe.height = sh;
+      const ctx = probe.getContext("2d", { willReadFrequently: true });
+      ctx.drawImage(source, 0, 0, sw, sh);
+      const data = ctx.getImageData(0, 0, sw, sh).data;
+      const values = new Uint8Array(sw * sh);
+      const hist = new Uint32Array(256);
+      for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+        const v = Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+        values[p] = v;
+        hist[v] += 1;
+      }
+      const total = sw * sh;
+      const otsu = otsuFromHist(hist, total);
+      let midtones = 0;
+      for (let v = 64; v < 192; v += 1) midtones += hist[v];
+      let gradSum = 0;
+      let gradCount = 0;
+      for (let y = 0; y < sh - 1; y += 1) {
+        for (let x = 0; x < sw - 1; x += 1) {
+          const i = y * sw + x;
+          gradSum += Math.abs(values[i + 1] - values[i]) + Math.abs(values[i + sw] - values[i]);
+          gradCount += 2;
+        }
+      }
+      return {
+        threshold: otsu.threshold,
+        separability: otsu.separability,
+        midtoneShare: midtones / total,
+        meanGradient: gradCount ? gradSum / gradCount : 0,
+      };
+    }
+
+    function autoChoose(item) {
+      const globalThreshold = Number(els.thresholdInput.value) || 160;
+      if (item.kind === "text") {
+        return { mode: "threshold", threshold: globalThreshold, auto: "порог (текст)" };
+      }
+      const a = item.analysis || (item.analysis = analyzeCanvas(item.canvas));
+      if (a.separability > 0.8 && a.midtoneShare < 0.12) {
+        return { mode: "threshold", threshold: a.threshold, auto: `порог ${a.threshold} (Оцу)` };
+      }
+      if (a.meanGradient < 12) {
+        return { mode: "jjn", threshold: globalThreshold, auto: "JJN (плавные тона)" };
+      }
+      return { mode: "atkinson", threshold: globalThreshold, auto: "Atkinson (детали)" };
+    }
+
+    function resolveDither(item) {
+      const setting = item.dither || els.ditherSelect.value;
+      if (setting === "auto") return autoChoose(item);
+      return { mode: setting, threshold: Number(els.thresholdInput.value) };
+    }
+
+    // Порог осмыслен только там, где объект ПО ФАКТУ растрируется порогом.
+    // «Авто» разрешается в конкретный алгоритм для каждого объекта, поэтому
+    // судим по разрешённому режиму, а не по слову «Авто» в селекте.
+    function thresholdMatters() {
+      if (!app.items.length) {
+        const g = els.ditherSelect.value;
+        return g === "threshold" || g === "auto";
+      }
+      return app.items.some((it) => resolveDither(it).mode === "threshold");
+    }
+
+    const DITHER_SHORT = {
+      "threshold": "порог",
+      "floyd-steinberg": "FS",
+      "fs-serpentine": "FS-серп",
+      "atkinson": "Atkinson",
+      "jjn": "JJN",
+      "stucki": "Stucki",
+      "bayer4": "Bayer4",
+      "bayer8": "Bayer8",
+      "cluster": "кластер",
+      "bluenoise": "blue noise",
+      "lines": "линии",
+      "crosshatch": "штрих",
+      "rings": "кольца",
+      "riemersma": "зерно",
+    };
+
+    function ditherLabel(item) {
+      const r = resolveDither(item);
+      return r.auto ? `авто → ${r.auto}` : (DITHER_SHORT[r.mode] || r.mode);
+    }
+
+    function bitsToRows(bits, w, h) {
+      const rows = [];
+      for (let y = 0; y < h; y += 1) {
+        const row = new Uint8Array(w / 8);
+        for (let x = 0; x < w; x += 1) {
+          if (bits[y * w + x]) row[x >> 3] |= 1 << (x & 7);
+        }
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    function rasterizeTape() {
+      const w = PRINT_WIDTH;
+      const h = app.paperHeight;
+      const bits = new Uint8Array(w * h);
+      for (const item of app.items) {
+        const drawW = item.canvas.width * item.scale;
+        const drawH = item.canvas.height * item.scale;
+        const rad = item.rotation * Math.PI / 180;
+        const cos = Math.abs(Math.cos(rad));
+        const sin = Math.abs(Math.sin(rad));
+        const boundW = drawW * cos + drawH * sin;
+        const boundH = drawW * sin + drawH * cos;
+        const cx = item.x + drawW / 2;
+        const cy = item.y + drawH / 2;
+        const minX = Math.max(0, Math.floor(cx - boundW / 2));
+        const minY = Math.max(0, Math.floor(cy - boundH / 2));
+        const maxX = Math.min(w, Math.ceil(cx + boundW / 2));
+        const maxY = Math.min(h, Math.ceil(cy + boundH / 2));
+        const bw = maxX - minX;
+        const bh = maxY - minY;
+        if (bw <= 0 || bh <= 0) continue;
+
+        const patch = document.createElement("canvas");
+        patch.width = bw;
+        patch.height = bh;
+        const pctx = patch.getContext("2d", { willReadFrequently: true });
+        pctx.imageSmoothingEnabled = true;
+        pctx.translate(cx - minX, cy - minY);
+        pctx.rotate(rad);
+        pctx.drawImage(item.canvas, -drawW / 2, -drawH / 2, drawW, drawH);
+
+        const data = pctx.getImageData(0, 0, bw, bh).data;
+        const values = new Uint8Array(bw * bh);
+        const covered = new Uint8Array(bw * bh);
+        for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+          if (data[i + 3] < 128) {
+            values[p] = 255;
+            continue;
+          }
+          covered[p] = 1;
+          values[p] = adjustedLuminance(data[i], data[i + 1], data[i + 2]);
+        }
+        const { mode, threshold } = resolveDither(item);
+        const itemBits = ditherBits(values, bw, bh, mode, threshold);
+        for (let y = 0; y < bh; y += 1) {
+          const rowBase = (minY + y) * w + minX;
+          for (let x = 0; x < bw; x += 1) {
+            const p = y * bw + x;
+            if (covered[p]) bits[rowBase + x] = itemBits[p];
+          }
+        }
+      }
+      return { rows: bitsToRows(bits, w, h), height: h };
+    }
+
+    async function loadImageFile(file) {
+      if (!file || !file.type.startsWith("image/")) {
+        log("Выбранный файл не похож на картинку.");
+        return;
+      }
+
+      log(`Загружаю картинку: ${file.name}`);
+      try {
+        const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+        const maxSourceWidth = 1800;
+        const scale = Math.min(1, maxSourceWidth / bitmap.width);
+        const width = Math.max(1, Math.round(bitmap.width * scale));
+        const height = Math.max(1, Math.round(bitmap.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bitmap, 0, 0, width, height);
+        bitmap.close();
+
+        setMode("image");
+        const item = addItem(canvas, file.name, "image");
+        item.scale = Math.min(1, PRINT_WIDTH / canvas.width);
+        item.x = (PRINT_WIDTH - canvas.width * item.scale) / 2;
+        fitTapeToContent();
+        syncActiveItem();
+        renderObjectList();
+        renderTapeToCanvas();
+        log(`Картинка загружена: ${file.name}, ${canvas.width}x${canvas.height}`);
+        return item;
+      } catch (err) {
+        log(`Не удалось открыть картинку: ${err.message || String(err)}`);
+        return null;
+      }
+    }
+
+    async function loadImagesFromFileList(files) {
+      const imageFiles = Array.from(files || []).filter((item) => item.type && item.type.startsWith("image/"));
+      if (!imageFiles.length) {
+        log("В выбранных файлах нет картинки.");
+        return;
+      }
+      for (const file of imageFiles) {
+        await loadImageFile(file);
+      }
+      if (imageFiles.length > 1) {
+        stackItems();
+        log(`Загружено картинок: ${imageFiles.length}`);
+      }
+    }
+
+    const MONO_STACK = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+    const SANS_STACK = 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
+    const SERIF_STACK = 'Georgia, "Times New Roman", serif';
+    const FONT_STACKS = {
+      "mono": MONO_STACK,
+      "bold-mono": MONO_STACK,
+      "sans": SANS_STACK,
+      "bold-sans": SANS_STACK,
+      "serif": SERIF_STACK,
+    };
+
+    function textFontSpec(params) {
+      const stack = FONT_STACKS[params.font] || MONO_STACK;
+      const weight = params.font.startsWith("bold") ? "bold " : "";
+      return `${weight}${params.fontSize}px ${stack}`;
+    }
+
+    function textParamsFromInputs() {
+      return {
+        text: els.textInput.value.replace(/\s+$/, ""),
+        font: els.fontSelect.value,
+        fontSize: clamp(Number(els.fontSizeInput.value) || 28, 12, 72),
+        padding: clamp(Number(els.textPaddingInput.value) || 0, 0, 80),
+        textColor: els.textColorSelect.value === "white" ? "white" : "black",
+        plate: els.textPlateSelect.value !== "off",
+      };
+    }
+
+    function textName(text) {
+      const firstLine = text.split("\n")[0].trim();
+      if (!firstLine) return "Текст";
+      return firstLine.length > 18 ? `${firstLine.slice(0, 18)}…` : firstLine;
+    }
+
+    function buildTextCanvas(params) {
+      const font = textFontSpec(params);
+      const probe = document.createElement("canvas");
+      probe.width = PRINT_WIDTH;
+      probe.height = 20;
+      const pctx = probe.getContext("2d", { willReadFrequently: true });
+      pctx.font = font;
+      const lineHeight = Math.ceil(params.fontSize * 1.28);
+      const maxWidth = PRINT_WIDTH - params.padding * 2;
+      const lines = [];
+
+      for (const paragraph of params.text.split("\n")) {
+        if (!paragraph) {
+          lines.push("");
+          continue;
+        }
+        const words = paragraph.split(/\s+/);
+        let line = "";
+        for (const word of words) {
+          const test = line ? `${line} ${word}` : word;
+          if (pctx.measureText(test).width > maxWidth && line) {
+            lines.push(line);
+            line = word;
+          } else {
+            line = test;
+          }
+        }
+        lines.push(line);
+      }
+
+      // Рамка объекта равна фактической ширине текста, а не всей ленте —
+      // иначе прозрачная (без подложки) область перехватывает клики по
+      // тому, что лежит под ней.
+      let maxLineWidth = 0;
+      for (const line of lines) {
+        maxLineWidth = Math.max(maxLineWidth, pctx.measureText(line).width);
+      }
+      const canvasWidth = Math.max(1, Math.ceil(Math.min(PRINT_WIDTH, maxLineWidth + params.padding * 2)));
+
+      // Строчная "коробка" шрифта закладывает место под нижние выносные
+      // элементы (у, р, д), даже если в тексте их нет — из-за этого
+      // нижний отступ визуально крупнее верхнего. Меряем фактические
+      // границы чернил первой и последней строки и обрезаем по ним,
+      // чтобы отступ был одинаковым со всех сторон.
+      const firstInk = lines.find((line) => line.trim()) || lines[0] || "";
+      const lastInk = [...lines].reverse().find((line) => line.trim()) || lines[lines.length - 1] || "";
+      const firstMetrics = pctx.measureText(firstInk);
+      const lastMetrics = pctx.measureText(lastInk);
+      const ascent = Number.isFinite(firstMetrics.actualBoundingBoxAscent)
+        ? firstMetrics.actualBoundingBoxAscent
+        : params.fontSize * 0.8;
+      const descent = Number.isFinite(lastMetrics.actualBoundingBoxDescent)
+        ? lastMetrics.actualBoundingBoxDescent
+        : params.fontSize * 0.2;
+      const inkHeight = ascent + (lines.length - 1) * lineHeight + descent;
+      const canvasHeight = Math.max(1, Math.round(inkHeight) + params.padding * 2);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = canvasWidth;
+      canvas.height = canvasHeight;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const inkColor = params.textColor === "white" ? "#fff" : "#000";
+      if (params.plate) {
+        // Подложка — контрастного цвета, чтобы текст читался поверх любой картинки.
+        ctx.fillStyle = params.textColor === "white" ? "#000" : "#fff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      // Без подложки холст остаётся прозрачным — сквозь него видно картинку под текстом.
+      ctx.fillStyle = inkColor;
+      ctx.textBaseline = "alphabetic";
+      ctx.font = font;
+      const baselineY = params.padding + ascent;
+      lines.forEach((line, index) => {
+        ctx.fillText(line, params.padding, baselineY + index * lineHeight);
+      });
+      return canvas;
+    }
+
+    function renderTextSource() {
+      const params = textParamsFromInputs();
+      if (!params.text.trim()) {
+        log("Введите текст.");
+        return;
+      }
+
+      const canvas = buildTextCanvas(params);
+      const item = addItem(canvas, textName(params.text), "text");
+      Object.assign(item, params);
+      item.scale = 1;
+      item.x = 0;
+      fitTapeToContent();
+      syncActiveItem();
+      renderObjectList();
+      renderTapeToCanvas();
+      log(`Текст подготовлен: ${canvas.width}x${canvas.height}`);
+    }
+
+    function refreshActiveText() {
+      const item = activeItem();
+      if (!item || item.kind !== "text" || item.text == null) return;
+      const params = textParamsFromInputs();
+      if (!params.text.trim()) return;
+      Object.assign(item, params);
+      item.canvas = buildTextCanvas(params);
+      item.name = textName(params.text);
+      item.analysis = null;
+      syncActiveItem();
+      renderObjectList();
+      scheduleRender();
+    }
+
+    function populateTextPanel(item) {
+      if (!item || item.kind !== "text" || item.text == null) return;
+      els.textInput.value = item.text;
+      els.fontSelect.value = item.font;
+      els.fontSizeInput.value = String(item.fontSize);
+      els.textPaddingInput.value = String(item.padding);
+      els.textColorSelect.value = item.textColor === "white" ? "white" : "black";
+      els.textPlateSelect.value = item.plate === false ? "off" : "on";
+    }
+
+    function fitWidth() {
+      if (!app.sourceCanvas) return;
+      app.image.rotation = 0;
+      app.image.scale = PRINT_WIDTH / app.sourceCanvas.width;
+      app.image.x = 0;
+      fitTapeToContent();
+      renderTapeToCanvas();
+    }
+
+    function setAlign(mode) {
+      if (!app.sourceCanvas) return;
+      const drawW = app.sourceCanvas.width * app.image.scale;
+      if (mode === "left") app.image.x = 0;
+      else if (mode === "right") app.image.x = PRINT_WIDTH - drawW;
+      else app.image.x = (PRINT_WIDTH - drawW) / 2;
+      syncActiveItem();
+      renderTapeToCanvas();
+    }
+
+    function rotateContent() {
+      if (!app.sourceCanvas) return;
+      app.image.rotation = (app.image.rotation + 90) % 360;
+      const drawW = app.sourceCanvas.width * app.image.scale;
+      app.image.x = (PRINT_WIDTH - drawW) / 2;
+      syncActiveItem();
+      renderTapeToCanvas();
+      log(`Поворот: ${app.image.rotation}°`);
+    }
+
+    const MONO_FONT = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+
+    function currentParams() {
+      const alg = els.ditherSelect.selectedOptions[0].textContent.trim();
+      const heatPct = Math.round((Number(els.energyInput.value) - 12000) / (65535 - 12000) * 100);
+      const mode = els.printSpeedSelect.selectedOptions[0].textContent.trim();
+      return {
+        alg,
+        threshold: els.thresholdInput.value,
+        contrast: els.contrastInput.value,
+        brightness: els.brightnessInput.value,
+        heatPct,
+        mode,
+      };
+    }
+
+    function buildTestCard() {
+      const W = PRINT_WIDTH;
+      const pad = 14;
+      const inW = W - pad * 2;
+      const temp = document.createElement("canvas");
+      temp.width = W;
+      temp.height = 1700;
+      const ctx = temp.getContext("2d", { willReadFrequently: true });
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, W, temp.height);
+      ctx.textBaseline = "top";
+      let y = pad;
+
+      const heading = (t) => {
+        ctx.fillStyle = "#000";
+        ctx.font = "bold 12px ui-sans-serif, system-ui, sans-serif";
+        ctx.fillText(t.toUpperCase(), pad, y);
+        y += 17;
+      };
+
+      // Заголовок
+      ctx.fillStyle = "#000";
+      ctx.font = "bold 28px ui-sans-serif, system-ui, sans-serif";
+      ctx.fillText("TinyTape · тест", pad, y);
+      ctx.font = `12px ${MONO_FONT}`;
+      ctx.fillText(new Date().toLocaleString(), pad, y + 32);
+      y += 56;
+
+      // Параметры печати (впечатываются, чтобы сравнивать отпечатки)
+      const p = currentParams();
+      heading("Параметры печати");
+      ctx.fillStyle = "#000";
+      ctx.font = `12px ${MONO_FONT}`;
+      ctx.fillText(`Растр: ${p.alg}`, pad, y); y += 16;
+      ctx.fillText(`Порог ${p.threshold}  ·  Контраст ${p.contrast}  ·  Ярк ${p.brightness}`, pad, y); y += 16;
+      ctx.fillText(`Нагрев ${p.heatPct}%  ·  ${p.mode}`, pad, y); y += 16 + 8;
+
+      // Сплошная заливка + выворотка (плотность чёрного)
+      heading("Заливка и выворотка");
+      ctx.fillStyle = "#000";
+      ctx.fillRect(pad, y, inW, 40);
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 20px ui-sans-serif, system-ui, sans-serif";
+      ctx.fillText("Белым по чёрному", pad + 12, y + 9);
+      y += 40 + 12;
+
+      // Градации серого ступенями (тоновая передача)
+      heading("Градации серого");
+      const steps = 11;
+      const sw = inW / steps;
+      for (let i = 0; i < steps; i += 1) {
+        const g = Math.round(255 * (1 - i / (steps - 1)));
+        ctx.fillStyle = `rgb(${g},${g},${g})`;
+        ctx.fillRect(Math.round(pad + i * sw), y, Math.ceil(sw), 36);
+      }
+      y += 36 + 12;
+
+      // Плавный градиент (где заваливается в чёрное/белое)
+      heading("Плавный градиент");
+      const grad = ctx.createLinearGradient(pad, 0, pad + inW, 0);
+      grad.addColorStop(0, "#fff");
+      grad.addColorStop(1, "#000");
+      ctx.fillStyle = grad;
+      ctx.fillRect(pad, y, inW, 36);
+      y += 36 + 12;
+
+      // Вертикальные волоски 1px (дефекты/пропуски термоголовки)
+      heading("Вертикальные линии 1px");
+      ctx.fillStyle = "#000";
+      for (let x = pad; x < pad + inW; x += 2) ctx.fillRect(x, y, 1, 28);
+      y += 28 + 10;
+
+      // Горизонтальные волоски 1px (равномерность протяжки)
+      heading("Горизонтальные линии 1px");
+      for (let yy = y; yy < y + 28; yy += 2) ctx.fillRect(pad, yy, inW, 1);
+      y += 28 + 12;
+
+      // Микротекстура — шахматка 1..4 px (мелкий растр)
+      heading("Шахматка 1–4 px");
+      const cb = 42;
+      let cx = pad;
+      for (const cell of [1, 2, 3, 4]) {
+        for (let yy = 0; yy < cb; yy += cell) {
+          for (let xx = 0; xx < cb; xx += cell) {
+            if (((xx / cell) + (yy / cell)) % 2 === 0) ctx.fillRect(cx + xx, y + yy, cell, cell);
+          }
+        }
+        cx += cb + 12;
+      }
+      y += cb + 12;
+
+      // Геометрия — круг и диагонали (искажения, скос)
+      heading("Геометрия");
+      const g2 = 72;
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#000";
+      ctx.beginPath();
+      ctx.arc(pad + g2 / 2, y + g2 / 2, g2 / 2 - 2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(pad, y); ctx.lineTo(pad + g2, y + g2);
+      ctx.moveTo(pad + g2, y); ctx.lineTo(pad, y + g2);
+      ctx.stroke();
+      ctx.strokeRect(pad + g2 + 22 + 0.5, y + 4 + 0.5, inW - g2 - 22 - 1, g2 - 8);
+      ctx.lineWidth = 1;
+      y += g2 + 12;
+
+      // Мелкий текст (порог читаемости)
+      heading("Мелкий текст");
+      ctx.fillStyle = "#000";
+      for (const size of [10, 12, 14, 18]) {
+        ctx.font = `${size}px ui-sans-serif, system-ui, sans-serif`;
+        ctx.fillText(`${size}px Съешь ещё мягких булочек 0123`, pad, y);
+        y += size + 6;
+      }
+      y += pad;
+
+      // Рамка вокруг карты
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0.5, 0.5, W - 1, y - 1);
+
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = y;
+      canvas.getContext("2d", { willReadFrequently: true }).drawImage(temp, 0, 0);
+      return canvas;
+    }
+
+    function loadDemo() {
+      app.items = [];
+      app.activeItemId = null;
+      app.settingsOpenId = null;
+      const item = addItem(buildTestCard(), "Тест печати", "image");
+      item.testCard = true;
+      fitWidth();
+      log("Тест-карта подготовлена.");
+    }
+
+    function refreshTestCard() {
+      const item = app.items.find((it) => it.testCard);
+      if (!item) return false;
+      item.canvas = buildTestCard();
+      item.analysis = null;
+      return true;
+    }
+
+    function updateUi() {
+      els.disconnectBtn.disabled = !server;
+      els.printBtn.disabled = !server || printing || !app.items.length;
+      els.connectBtn.disabled = !!server;
+      els.objectPanel.classList.toggle("hidden", !activeItem());
+      els.demoBtn.classList.toggle("hidden", app.items.length > 0);
+      els.stackBtn.disabled = !app.items.length;
+      els.clearObjectsBtn.disabled = !app.items.length;
+    }
+
+    async function connectPrinter() {
+      if (!("bluetooth" in navigator)) {
+        setStatus("Web Bluetooth недоступен", "bad");
+        log("Откройте страницу в Chrome: Safari не умеет Web Bluetooth.");
+        return;
+      }
+
+      els.connectBtn.disabled = true;
+      const lastConnected = await connectLastPrinter();
+      if (lastConnected) return;
+
+      setStatus("Выбор принтера...", "idle");
+      const request = { optionalServices: [...SERVICE_UUIDS, BATTERY_SERVICE] };
+      if (showAllDevices) {
+        request.acceptAllDevices = true;
+        log("Открываю список всех Bluetooth-устройств...");
+      } else {
+        request.filters = SERVICE_UUIDS.map((uuid) => ({ services: [uuid] }));
+        const lastName = localStorage.getItem("tinytape.lastDeviceName");
+        if (lastName) request.filters.push({ name: lastName });
+        log("Открываю список принтеров...");
+      }
+      showAllDevices = false;
+
+      try {
+        device = await navigator.bluetooth.requestDevice(request);
+      } catch (err) {
+        if (err.name === "NotFoundError") {
+          showAllDevices = true;
+          setStatus("Принтер не выбран", "idle");
+          log("Выбор отменён. Если принтера не было в списке, нажмите «Подключить» ещё раз — покажу все устройства.");
+          return;
+        }
+        throw err;
+      }
+
+      await connectDevice(device);
+    }
+
+    async function connectLastPrinter() {
+      if (!navigator.bluetooth.getDevices) return false;
+      const legacyId = localStorage.getItem("funprint.lastDeviceId");
+      const lastId = localStorage.getItem("tinytape.lastDeviceId") || legacyId;
+      const devices = await navigator.bluetooth.getDevices();
+      const known = devices.find((item) => item.id === lastId) || (devices.length === 1 ? devices[0] : null);
+      if (!known) return false;
+
+      try {
+        setStatus("Подключаю последний принтер...", "idle");
+        log(`Пробую последний принтер: ${known.name || known.id}`);
+        await connectDevice(known);
+        return true;
+      } catch (err) {
+        log(`Последний принтер не подключился: ${err.message || String(err)}`);
+        return false;
+      }
+    }
+
+    async function connectDevice(selectedDevice) {
+      device = selectedDevice;
+      manualDisconnect = false;
+      setStatus("Подключаюсь...", "idle");
+      server = await device.gatt.connect();
+      device.addEventListener("gattserverdisconnected", onDisconnected);
+      log(`Подключено: ${device.name || device.id}`);
+
+      let service = null;
+      for (const uuid of SERVICE_UUIDS) {
+        try {
+          service = await server.getPrimaryService(uuid);
+          log(`Найден сервис: 0x${uuid.toString(16)}`);
+          break;
+        } catch (err) {
+          log(`Сервис 0x${uuid.toString(16)} не подошел: ${err.message}`);
+        }
+      }
+      if (!service) throw new Error("BLE-сервис AE30/AF30 не найден");
+
+      setStatus("Открываю канал печати...", "idle");
+      writeChar = await service.getCharacteristic(WRITE_UUID);
+      notifyChar = await service.getCharacteristic(NOTIFY_UUID);
+      readyPromise = null;
+      readyResolve = null;
+      readyReject = null;
+      await notifyChar.startNotifications();
+      notifyChar.addEventListener("characteristicvaluechanged", onNotification);
+
+      batterySupported = true;
+      batteryLevel = null;
+      await readBatteryLevel();
+
+      setStatus(connectedStatus(), "ok");
+      localStorage.setItem("tinytape.lastDeviceId", device.id);
+      localStorage.setItem("tinytape.lastDeviceName", device.name || "");
+      updateUi();
+      log("Характеристики принтера готовы.");
+    }
+
+    function connectedStatus() {
+      const name = device ? (device.name || device.id) : "";
+      const battery = batteryLevel == null ? "" : ` · ${batteryLevel}%`;
+      return `Подключен: ${name}${battery}`;
+    }
+
+    async function readBatteryLevel() {
+      if (!server || !batterySupported) return;
+      try {
+        const service = await withTimeout(server.getPrimaryService(BATTERY_SERVICE), 4000);
+        const characteristic = await withTimeout(service.getCharacteristic(BATTERY_CHAR), 4000);
+        const value = await withTimeout(characteristic.readValue(), 4000);
+        batteryLevel = value.getUint8(0);
+        log(`Заряд батареи: ${batteryLevel}%`);
+      } catch (err) {
+        if (err.name === "TimeoutError") {
+          log("Принтер не ответил про заряд батареи, пропускаю.");
+          return;
+        }
+        batterySupported = false;
+        batteryLevel = null;
+        log("Принтер не сообщает заряд батареи (нет сервиса 0x180F).");
+      }
+    }
+
+    function onNotification(event) {
+      const view = event.target.value;
+      const value = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
+      const hex = Array.from(value, (b) => b.toString(16).padStart(2, "0")).join(" ");
+      log(`Notify: ${hex}`);
+      if (value.length === READY_NOTIFICATION.length && READY_NOTIFICATION.every((b, i) => value[i] === b)) {
+        settleReady();
+      } else if (value.length && value[0] === 0x51 && value[1] === 0x78 && value[2] === 0xae && value[3] === 0x01) {
+        if (value[6] === 0x00) settleReady();
+      }
+    }
+
+    function settleReady() {
+      if (!readyResolve) return;
+      readyResolve();
+      readyResolve = null;
+      readyReject = null;
+      readyPromise = null;
+    }
+
+    async function writeChunk(chunk) {
+      if (!writeChar) throw new Error("Принтер не подключен");
+      const write = writeChar.properties.writeWithoutResponse
+        ? writeChar.writeValueWithoutResponse(chunk)
+        : writeChar.writeValue(chunk);
+      await withTimeout(write, 10000, "BLE-запись не ответила за 10 секунд");
+    }
+
+    async function sendBytes(bytes, profile) {
+      for (let offset = 0; offset < bytes.length; offset += profile.chunkSize) {
+        const chunk = bytes.slice(offset, Math.min(bytes.length, offset + profile.chunkSize));
+        await writeChunk(chunk);
+        if (profile.chunkPause > 0) {
+          await sleep(profile.chunkPause);
+        }
+      }
+    }
+
+    async function sendPrintJob(rows, profile) {
+      const startPackets = [
+        cmdGetState(),
+        cmdSetQuality(),
+        cmdSetEnergy(clamp(Number(els.energyInput.value) || 40000, 12000, 0xffff)),
+        cmdApplyEnergy(),
+        cmdLatticeStart(),
+      ];
+      for (const packet of startPackets) {
+        await sendBytes(packet, profile);
+      }
+
+      for (let index = 0; index < rows.length; index += 1) {
+        await sendBytes(rowPacket(rows[index]), profile);
+        if (profile.rowPause > 0) {
+          await sleep(profile.rowPause);
+        }
+        if ((index + 1) % 32 === 0 || index + 1 === rows.length) {
+          setStatus(`Печать ${index + 1}/${rows.length}`, "idle");
+        }
+        if (profile.batchRows > 0 && (index + 1) % profile.batchRows === 0) {
+          log(`Отправлено строк: ${index + 1}/${rows.length}`);
+          await sleep(profile.batchPause);
+        }
+      }
+
+      const endPackets = [
+        cmdFeedPaper(TEAR_OFF_FEED),
+        cmdSetPaper(),
+        cmdSetPaper(),
+        cmdSetPaper(),
+        cmdLatticeEnd(),
+        cmdGetState(),
+      ];
+      for (const packet of endPackets) {
+        await sendBytes(packet, profile);
+      }
+    }
+
+    function waitForReady(timeoutMs = 5000) {
+      if (readyPromise) return readyPromise;
+      readyPromise = new Promise((resolve, reject) => {
+        readyResolve = resolve;
+        readyReject = reject;
+        setTimeout(() => {
+          if (readyReject === reject) {
+            readyResolve = null;
+            readyReject = null;
+            readyPromise = null;
+            reject(new Error("Принтер не прислал ready"));
+          }
+        }, timeoutMs);
+      });
+      return readyPromise;
+    }
+
+    async function printCurrentBitmap() {
+      if (!server || !writeChar || printing || !app.items.length) return;
+      const rows = buildPrintBitmap().rows;
+      const profile = PRINT_SPEEDS[els.printSpeedSelect.value] || PRINT_SPEEDS.safe;
+      printing = true;
+      updateUi();
+      try {
+        const ready = waitForReady(Math.max(60000, rows.length * 80)).catch((err) => {
+          log(err.message);
+          return null;
+        });
+        const estimatedBytes = rows.length * (PRINT_WIDTH / 8 + 8);
+        log(`Печать: ${rows.length} строк, примерно ${estimatedBytes} байт, режим ${els.printSpeedSelect.value}`);
+        setStatus("Печать...", "idle");
+        await sendPrintJob(rows, profile);
+        await ready;
+        if (!server) {
+          log("Печать прервана: соединение потеряно.");
+          return;
+        }
+        await readBatteryLevel();
+        setStatus(connectedStatus(), "ok");
+        log("Задание отправлено.");
+      } finally {
+        printing = false;
+        updateUi();
+      }
+    }
+
+    function onDisconnected() {
+      server = null;
+      writeChar = null;
+      notifyChar = null;
+      if (readyReject) readyReject(new Error("Соединение потеряно"));
+      readyResolve = null;
+      readyReject = null;
+      readyPromise = null;
+      printing = false;
+      updateUi();
+      if (reconnecting) return;
+      if (manualDisconnect) {
+        setStatus("Отключен", "bad");
+        log("Принтер отключен.");
+        return;
+      }
+      log("Связь с принтером потеряна.");
+      reconnectLoop();
+    }
+
+    async function reconnectLoop() {
+      if (reconnecting || !device) return;
+      reconnecting = true;
+      try {
+        for (let attempt = 1; attempt <= 5; attempt += 1) {
+          setStatus(`Переподключение ${attempt}/5...`, "bad");
+          try {
+            await connectDevice(device);
+            log("Соединение восстановлено.");
+            return;
+          } catch (err) {
+            log(`Попытка ${attempt} не удалась: ${err.message || String(err)}`);
+            if (device.gatt.connected) {
+              try { device.gatt.disconnect(); } catch {}
+            }
+          }
+          await sleep(1200 * attempt);
+          if (manualDisconnect || server) return;
+        }
+        setStatus("Отключен", "bad");
+        log("Не удалось переподключиться. Нажмите «Подключить».");
+      } finally {
+        reconnecting = false;
+        updateUi();
+      }
+    }
+
+    async function disconnectPrinter() {
+      manualDisconnect = true;
+      if (device && device.gatt && device.gatt.connected) {
+        device.gatt.disconnect();
+      } else {
+        onDisconnected();
+      }
+    }
+
+    function canvasPoint(event) {
+      const rect = els.preview.getBoundingClientRect();
+      return {
+        x: (event.clientX - rect.left) * PRINT_WIDTH / rect.width,
+        y: (event.clientY - rect.top) * els.preview.height / rect.height,
+      };
+    }
+
+    function itemAtPoint(point) {
+      for (let i = app.items.length - 1; i >= 0; i -= 1) {
+        const item = app.items[i];
+        const width = item.canvas.width * item.scale;
+        const height = item.canvas.height * item.scale;
+        if (point.x >= item.x && point.x <= item.x + width && point.y >= item.y && point.y <= item.y + height) {
+          return item;
+        }
+      }
+      return null;
+    }
+
+    els.preview.addEventListener("pointerdown", (event) => {
+      if (!app.items.length) return;
+      const point = canvasPoint(event);
+      const picked = itemAtPoint(point);
+      if (picked && picked.id !== app.activeItemId) {
+        app.activeItemId = picked.id;
+        syncActiveItem();
+        populateTextPanel(picked);
+        renderObjectList();
+      }
+      const item = activeItem();
+      if (!item) return;
+      els.preview.setPointerCapture(event.pointerId);
+      els.preview.classList.add("dragging");
+      app.drag = {
+        pointerId: event.pointerId,
+        startX: point.x,
+        startY: point.y,
+        imageX: item.x,
+        imageY: item.y,
+      };
+    });
+
+    els.preview.addEventListener("pointermove", (event) => {
+      if (!app.drag || app.drag.pointerId !== event.pointerId) return;
+      const item = activeItem();
+      if (!item) return;
+      const point = canvasPoint(event);
+      item.x = app.drag.imageX + point.x - app.drag.startX;
+      item.y = app.drag.imageY + point.y - app.drag.startY;
+      syncActiveItem();
+      scheduleRender();
+    });
+
+    function stopDrag(event) {
+      if (!app.drag || app.drag.pointerId !== event.pointerId) return;
+      app.drag = null;
+      els.preview.classList.remove("dragging");
+    }
+
+    els.preview.addEventListener("pointerup", stopDrag);
+    els.preview.addEventListener("pointercancel", stopDrag);
+
+    els.canvasScroll.addEventListener("wheel", (event) => {
+      event.stopPropagation();
+      if (!event.ctrlKey) return;
+      const item = activeItem();
+      if (!item) return;
+      event.preventDefault();
+      const factor = Math.exp(clamp(-event.deltaY, -25, 25) * 0.01);
+      const nextScale = clamp(item.scale * factor, 0.1, 3);
+      const cx = item.x + item.canvas.width * item.scale / 2;
+      const cy = item.y + item.canvas.height * item.scale / 2;
+      item.scale = nextScale;
+      item.x = cx - item.canvas.width * nextScale / 2;
+      item.y = cy - item.canvas.height * nextScale / 2;
+      syncActiveItem();
+      scheduleRender();
+    }, { passive: false });
+
+    window.addEventListener("keydown", (event) => {
+      if (event.key !== "Delete" && event.key !== "Backspace") return;
+      const target = event.target;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return;
+      const item = activeItem();
+      if (!item) return;
+      event.preventDefault();
+      removeItem(item.id);
+      log(`Объект удалён: ${item.name}`);
+    });
+
+    els.connectBtn.addEventListener("click", async () => {
+      try {
+        await connectPrinter();
+      } catch (err) {
+        setStatus("Ошибка подключения", "bad");
+        log(err.message || String(err));
+      } finally {
+        updateUi();
+      }
+    });
+
+    els.disconnectBtn.addEventListener("click", disconnectPrinter);
+    els.printBtn.addEventListener("click", async () => {
+      try {
+        await printCurrentBitmap();
+      } catch (err) {
+        setStatus("Ошибка печати", "bad");
+        log(err.message || String(err));
+      } finally {
+        updateUi();
+      }
+    });
+
+    els.imageTab.addEventListener("click", () => setMode("image"));
+    els.textTab.addEventListener("click", () => setMode("text"));
+    els.layoutViewBtn.addEventListener("click", () => {
+      app.previewMode = "layout";
+      renderTapeToCanvas();
+    });
+    els.rasterViewBtn.addEventListener("click", () => {
+      app.previewMode = "raster";
+      renderTapeToCanvas();
+    });
+    els.printViewBtn.addEventListener("click", () => {
+      app.previewMode = "print";
+      renderTapeToCanvas();
+    });
+    els.fileInput.addEventListener("change", async () => {
+      await loadImagesFromFileList(els.fileInput.files);
+      els.fileInput.value = "";
+    });
+
+    window.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      els.canvasShell.classList.add("drop-ready");
+    });
+
+    window.addEventListener("dragleave", (event) => {
+      if (event.target === document.body || event.target === document.documentElement) {
+        els.canvasShell.classList.remove("drop-ready");
+      }
+    });
+
+    window.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      els.canvasShell.classList.remove("drop-ready");
+      await loadImagesFromFileList(event.dataTransfer.files);
+    });
+
+    window.addEventListener("paste", async (event) => {
+      const files = Array.from(event.clipboardData.files || []);
+      if (files.length) await loadImagesFromFileList(files);
+    });
+    els.renderTextBtn.addEventListener("click", renderTextSource);
+    els.textInput.addEventListener("input", refreshActiveText);
+    els.fontSelect.addEventListener("change", refreshActiveText);
+    els.textColorSelect.addEventListener("change", refreshActiveText);
+    els.textPlateSelect.addEventListener("change", refreshActiveText);
+    els.fontSizeInput.addEventListener("input", refreshActiveText);
+    els.textPaddingInput.addEventListener("input", refreshActiveText);
+    els.fitWidthBtn.addEventListener("click", fitWidth);
+    els.rotateBtn.addEventListener("click", rotateContent);
+    els.alignLeftBtn.addEventListener("click", () => setAlign("left"));
+    els.alignCenterBtn.addEventListener("click", () => setAlign("center"));
+    els.alignRightBtn.addEventListener("click", () => setAlign("right"));
+    els.stackBtn.addEventListener("click", stackItems);
+    els.clearObjectsBtn.addEventListener("click", clearItems);
+    els.demoBtn.addEventListener("click", loadDemo);
+    els.clearBtn.addEventListener("click", () => {
+      els.log.textContent = "";
+    });
+
+    els.paperHeightInput.addEventListener("input", () => {
+      app.paperHeight = Number(els.paperHeightInput.value);
+      scheduleRender();
+    });
+    els.fitTapeBtn.addEventListener("click", () => {
+      if (!app.items.length) return;
+      fitTapeToContent();
+      renderTapeToCanvas();
+      log(`Лента подогнана: ${app.paperHeight} px`);
+    });
+    els.scaleInput.addEventListener("input", () => {
+      const item = activeItem();
+      if (!item) return;
+      const newScale = Number(els.scaleInput.value) / 100 * PRINT_WIDTH / item.canvas.width;
+      const cx = item.x + item.canvas.width * item.scale / 2;
+      item.scale = newScale;
+      item.x = cx - item.canvas.width * newScale / 2;
+      syncActiveItem();
+      scheduleRender();
+    });
+    els.thresholdInput.addEventListener("input", () => {
+      refreshTestCard();
+      scheduleRender();
+    });
+    els.contrastInput.addEventListener("input", () => {
+      refreshTestCard();
+      scheduleRender();
+    });
+    els.brightnessInput.addEventListener("input", () => {
+      refreshTestCard();
+      scheduleRender();
+    });
+    els.ditherSelect.addEventListener("change", () => {
+      refreshTestCard();
+      renderObjectList();
+      renderTapeToCanvas();
+    });
+    els.printSpeedSelect.addEventListener("change", () => {
+      if (refreshTestCard()) scheduleRender();
+    });
+    els.otsuBtn.addEventListener("click", () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = PRINT_WIDTH;
+      canvas.height = app.paperHeight;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      drawLayout(ctx, canvas);
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const hist = new Uint32Array(256);
+      for (let i = 0; i < data.length; i += 4) {
+        hist[Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114)] += 1;
+      }
+      const { threshold } = otsuFromHist(hist, data.length / 4);
+      els.thresholdInput.value = String(threshold);
+      log(`Порог по Оцу: ${threshold}`);
+      refreshTestCard();
+      renderTapeToCanvas();
+    });
+    els.energyInput.addEventListener("input", () => {
+      updateNumbers();
+      const card = refreshTestCard();
+      if (card || app.previewMode === "print") scheduleRender();
+    });
+
+    setStatus("Не подключен", "idle");
+    renderTapeToCanvas();
+    log("Готово. Подключите принтер, загрузите картинку или подготовьте текст.");
+  </script>
+</body>
+</html>
