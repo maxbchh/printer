@@ -783,8 +783,8 @@
             Нагрев
             <div class="range-line">
               <input id="energyInput" type="range" min="8000" max="26000" step="1" value="17520" />
-              $117520$2
-            </div>
+              <span class="range-value" id="energyValue">17520</span>
+</div>
           </label>
           <label>
             Режим печати
@@ -2453,36 +2453,86 @@
 
     async function sendPrintJob(rows, profile) {
       const rawEnergy = Number(els.energyInput.value);
-      const energy = clamp(Number.isFinite(rawEnergy) ? rawEnergy : DEFAULT_ENERGY, MIN_ENERGY, MAX_ENERGY);
-      // На SC03h команда A6 может остановить прошивку — используем поток A3/A4/AF/BE/BD.
-      const startPackets = [
+      const energy = clamp(
+        Number.isFinite(rawEnergy) ? rawEnergy : DEFAULT_ENERGY,
+        MIN_ENERGY,
+        MAX_ENERGY,
+      );
+
+      // Собираем каноническую последовательность SC03h: init → строки → подача.
+      // 0xA6 намеренно не используется: на SC03h эта команда ломает задание.
+      const packets = [
         cmdGetState(),
         cmdSetQuality(),
         cmdSetEnergy(energy),
         cmdSetDrawingMode(),
         cmdFeedPaper(),
       ];
-      for (const packet of startPackets) await sendBytes(packet, profile);
-      await sleep(120);
 
-      const largeJob = rows.length * (PRINT_WIDTH / 8 + 8) > 20000;
-      const rowPause = Math.max(profile.rowPause, largeJob ? 18 : 8);
       for (let index = 0; index < rows.length; index += 1) {
-        await sendBytes(rowPacket(rows[index]), profile);
-        await sleep(rowPause);
-        if ((index + 1) % 32 === 0 || index + 1 === rows.length) {
-          setStatus(`Печать ${index + 1}/${rows.length}`, "idle");
-        }
-        if (profile.batchRows > 0 && (index + 1) % profile.batchRows === 0) {
-          log(`Отправлено строк: ${index + 1}/${rows.length}`);
-          await sleep(profile.batchPause);
-        }
+        packets.push(rowPacket(rows[index]));
       }
       for (let index = 0; index < TEAR_OFF_COMMANDS; index += 1) {
-        await sendBytes(cmdFeedPaper(), profile);
-        if ((index + 1) % 10 === 0) await sleep(180);
+        packets.push(cmdFeedPaper());
       }
-      await sendBytes(cmdGetState(), profile);
+
+      const totalBytes = packets.reduce((sum, packet) => sum + packet.length, 0);
+      const largeJob = totalBytes > 20000;
+      const transfer = {
+        // Все строки 56 байт; остальные команды короче.
+        chunkSize: Math.min(180, Math.max(56, profile.chunkSize)),
+        chunkPause: Math.max(profile.chunkPause, largeJob ? 25 : 10),
+      };
+      const burstLimit = 4096;
+      let burstParts = [];
+      let burstBytes = 0;
+      let completedRows = 0;
+      let sentBytes = 0;
+
+      async function flushBurst(isLast = false) {
+        if (!burstParts.length) return;
+
+        const payload = new Uint8Array(burstBytes);
+        let offset = 0;
+        for (const part of burstParts) {
+          payload.set(part, offset);
+          offset += part.length;
+        }
+
+        await sendBytes(payload, transfer);
+        sentBytes += payload.length;
+        log(`Передано ${sentBytes}/${totalBytes} байт`);
+
+        burstParts = [];
+        burstBytes = 0;
+
+        // У длинных заданий даём маленькому BLE-буферу принтера опустеть.
+        if (largeJob && !isLast) {
+          await sleep(600);
+        }
+      }
+
+      for (let index = 0; index < packets.length; index += 1) {
+        const packet = packets[index];
+
+        // Границы пакетов сохраняются внутри каждого блока до 4 КБ.
+        if (burstBytes > 0 && burstBytes + packet.length > burstLimit) {
+          await flushBurst(false);
+        }
+
+        burstParts.push(packet);
+        burstBytes += packet.length;
+
+        if (index >= 5 && index < 5 + rows.length) {
+          completedRows = index - 4;
+          if (completedRows % 32 === 0 || completedRows === rows.length) {
+            setStatus(`Печать ${completedRows}/${rows.length}`, "idle");
+          }
+        }
+      }
+
+      await flushBurst(true);
+      log("Все строки и команды подачи переданы.");
     }
 
     async function printCurrentBitmap() {
@@ -2497,7 +2547,8 @@
         log("Протокол: Fun Print / SC03h, ширина 384 точки.");
         setStatus("Печать...", "idle");
         await sendPrintJob(rows, profile);
-        await sleep(1500);
+        // Термопринтеру нужно время, чтобы закончить прожиг и протяжку.
+        await sleep(3000);
         if (!server || !writeChar || !device?.gatt?.connected) {
           throw new Error("Соединение потеряно до завершения передачи задания");
         }
@@ -2670,7 +2721,7 @@
         await printCurrentBitmap();
       } catch (err) {
         setStatus("Ошибка печати", "bad");
-        log(err.message || String(err));
+        log(`Ошибка печати (${err.name || "Error"}): ${err.message || String(err)}`);
       } finally {
         updateUi();
       }
