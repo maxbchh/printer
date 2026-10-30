@@ -782,8 +782,8 @@
           <label>
             Нагрев
             <div class="range-line">
-              <input id="energyInput" type="range" min="12000" max="65535" step="1" value="40000" />
-              <span class="range-value" id="energyValue">40000</span>
+              <input id="energyInput" type="range" min="8000" max="26000" step="1" value="17520" />
+              $117520$2
             </div>
           </label>
           <label>
@@ -809,20 +809,19 @@
 
   <script type="module">
     const PRINT_WIDTH = 384;
-    const SERVICE_UUIDS = [
-      0xae30,
-      0xaf30,
-    ];
+    const MIN_ENERGY = 8000;
+    const MAX_ENERGY = 26000;
+    const DEFAULT_ENERGY = 17520;
+    const SERVICE_UUIDS = [0xae30, 0xaf30];
     const WRITE_UUID = 0xae01;
     const NOTIFY_UUID = 0xae02;
-    const TEAR_OFF_FEED = 40;
+    const TEAR_OFF_COMMANDS = 40;
     const BATTERY_SERVICE = 0x180f;
     const BATTERY_CHAR = 0x2a19;
-    const READY_NOTIFICATION = new Uint8Array([0x51, 0x78, 0xae, 0x01, 0x01, 0x00, 0x00, 0x00, 0xff]);
     const PRINT_SPEEDS = {
-      short: { chunkSize: 100, chunkPause: 14, rowPause: 4, batchRows: 0, batchPause: 0 },
-      safe: { chunkSize: 60, chunkPause: 18, rowPause: 16, batchRows: 48, batchPause: 420 },
-      slow: { chunkSize: 40, chunkPause: 24, rowPause: 28, batchRows: 32, batchPause: 650 },
+      short: { chunkSize: 100, chunkPause: 8, rowPause: 10, batchRows: 64, batchPause: 180 },
+      safe: { chunkSize: 100, chunkPause: 14, rowPause: 14, batchRows: 32, batchPause: 300 },
+      slow: { chunkSize: 56, chunkPause: 20, rowPause: 20, batchRows: 24, batchPause: 450 },
     };
 
     const els = {
@@ -906,9 +905,6 @@
     let server = null;
     let writeChar = null;
     let notifyChar = null;
-    let readyResolve = null;
-    let readyReject = null;
-    let readyPromise = null;
     let currentBitmap = null;
     let batteryLevel = null;
     let batterySupported = true;
@@ -1197,7 +1193,7 @@
       els.thresholdGroup.classList.toggle("hidden", !thresholdMatters());
       els.contrastValue.textContent = els.contrastInput.value;
       els.brightnessValue.textContent = els.brightnessInput.value;
-      const energyPct = Math.round((Number(els.energyInput.value) - 12000) / (65535 - 12000) * 100);
+      const energyPct = Math.round((Number(els.energyInput.value) - MIN_ENERGY) / (MAX_ENERGY - MIN_ENERGY) * 100);
       els.energyValue.textContent = `${energyPct}%`;
       els.scaleInput.value = String(widthPct);
       els.bitmapInfo.textContent = `${PRINT_WIDTH} x ${app.paperHeight} px ≈ ${Math.round(app.paperHeight / 8)} мм`;
@@ -1238,44 +1234,22 @@
       return packet;
     }
 
+    // Стандартные команды Fun Print / SC03h (протокол 51 78).
     function cmdSetQuality() {
-      return buildPacket(0xa4, [0x32]);
+      return buildPacket(0xa4, [0x33]);
     }
-
     function cmdSetEnergy(value) {
-      return buildPacket(0xaf, [(value >> 8) & 0xff, value & 0xff]);
+      return buildPacket(0xaf, [value & 0xff, (value >> 8) & 0xff]);
     }
-
-    function cmdApplyEnergy() {
-      return buildPacket(0xbe, [0x01]);
+    function cmdSetDrawingMode() {
+      return buildPacket(0xbe, [0x00]);
     }
-
     function cmdGetState() {
       return buildPacket(0xa3, [0x00]);
     }
-
-    function cmdFeedPaper(amount) {
-      return buildPacket(0xbd, [amount & 0xff]);
+    function cmdFeedPaper() {
+      return buildPacket(0xbd, [0x23]);
     }
-
-    function cmdSetPaper() {
-      return buildPacket(0xa1, [0x30, 0x00]);
-    }
-
-    function cmdLatticeStart() {
-      return new Uint8Array([
-        0x51, 0x78, 0xa6, 0x00, 0x0b, 0x00, 0xaa, 0x55, 0x17, 0x38,
-        0x44, 0x5f, 0x5f, 0x5f, 0x44, 0x38, 0x2c, 0xa1, 0xff,
-      ]);
-    }
-
-    function cmdLatticeEnd() {
-      return new Uint8Array([
-        0x51, 0x78, 0xa6, 0x00, 0x0b, 0x00, 0xaa, 0x55, 0x17, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17, 0x11, 0xff,
-      ]);
-    }
-
     function rowPacket(rowBytes) {
       return buildPacket(0xa2, Uint8Array.from(rowBytes));
     }
@@ -1405,7 +1379,7 @@
         }
       }
 
-      const heatNorm = (Number(els.energyInput.value) - 12000) / (65535 - 12000);
+      const heatNorm = clamp((Number(els.energyInput.value) - MIN_ENERGY) / (MAX_ENERGY - MIN_ENERGY), 0, 1);
       const spread = 0.45 + heatNorm * 1.7;
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       const image = ctx.createImageData(w, h);
@@ -1844,7 +1818,8 @@
       for (let y = 0; y < h; y += 1) {
         const row = new Uint8Array(w / 8);
         for (let x = 0; x < w; x += 1) {
-          if (bits[y * w + x]) row[x >> 3] |= 1 << (x & 7);
+          // Fun Print / SC03h: левый пиксель записывается в старший бит.
+          if (bits[y * w + x]) row[x >> 3] |= 1 << (7 - (x & 7));
         }
         rows.push(row);
       }
@@ -2147,7 +2122,7 @@
 
     function currentParams() {
       const alg = els.ditherSelect.selectedOptions[0].textContent.trim();
-      const heatPct = Math.round((Number(els.energyInput.value) - 12000) / (65535 - 12000) * 100);
+      const heatPct = Math.round((Number(els.energyInput.value) - MIN_ENERGY) / (MAX_ENERGY - MIN_ENERGY) * 100);
       const mode = els.printSpeedSelect.selectedOptions[0].textContent.trim();
       return {
         alg,
@@ -2308,7 +2283,7 @@
 
     function updateUi() {
       els.disconnectBtn.disabled = !server;
-      els.printBtn.disabled = !server || printing || !app.items.length;
+      els.printBtn.disabled = !server || !writeChar || printing || !app.items.length;
       els.connectBtn.disabled = !!server;
       els.objectPanel.classList.toggle("hidden", !activeItem());
       els.demoBtn.classList.toggle("hidden", app.items.length > 0);
@@ -2397,9 +2372,6 @@
       setStatus("Открываю канал печати...", "idle");
       writeChar = await service.getCharacteristic(WRITE_UUID);
       notifyChar = await service.getCharacteristic(NOTIFY_UUID);
-      readyPromise = null;
-      readyResolve = null;
-      readyReject = null;
       await notifyChar.startNotifications();
       notifyChar.addEventListener("characteristicvaluechanged", onNotification);
 
@@ -2444,27 +2416,29 @@
       const value = new Uint8Array(view.buffer, view.byteOffset, view.byteLength);
       const hex = Array.from(value, (b) => b.toString(16).padStart(2, "0")).join(" ");
       log(`Notify: ${hex}`);
-      if (value.length === READY_NOTIFICATION.length && READY_NOTIFICATION.every((b, i) => value[i] === b)) {
-        settleReady();
-      } else if (value.length && value[0] === 0x51 && value[1] === 0x78 && value[2] === 0xae && value[3] === 0x01) {
-        if (value[6] === 0x00) settleReady();
+      if (value.length >= 7 && value[0] === 0x51 && value[1] === 0x78 &&
+          value[2] === 0xa3 && value[3] === 0x01) {
+        log("Принтер ответил на запрос состояния.");
       }
     }
 
-    function settleReady() {
-      if (!readyResolve) return;
-      readyResolve();
-      readyResolve = null;
-      readyReject = null;
-      readyPromise = null;
-    }
-
     async function writeChunk(chunk) {
-      if (!writeChar) throw new Error("Принтер не подключен");
-      const write = writeChar.properties.writeWithoutResponse
-        ? writeChar.writeValueWithoutResponse(chunk)
-        : writeChar.writeValue(chunk);
-      await withTimeout(write, 10000, "BLE-запись не ответила за 10 секунд");
+      if (!writeChar || !device?.gatt?.connected) {
+        throw new Error("Bluetooth-соединение с принтером потеряно");
+      }
+      let write;
+      if (writeChar.properties.writeWithoutResponse &&
+          typeof writeChar.writeValueWithoutResponse === "function") {
+        write = writeChar.writeValueWithoutResponse(chunk);
+      } else if (writeChar.properties.write &&
+                 typeof writeChar.writeValueWithResponse === "function") {
+        write = writeChar.writeValueWithResponse(chunk);
+      } else if (typeof writeChar.writeValue === "function") {
+        write = writeChar.writeValue(chunk);
+      } else {
+        throw new Error("Канал принтера не поддерживает запись данных");
+      }
+      await withTimeout(write, 10000, "Принтер не подтвердил BLE-запись за 10 секунд");
     }
 
     async function sendBytes(bytes, profile) {
@@ -2478,22 +2452,24 @@
     }
 
     async function sendPrintJob(rows, profile) {
+      const rawEnergy = Number(els.energyInput.value);
+      const energy = clamp(Number.isFinite(rawEnergy) ? rawEnergy : DEFAULT_ENERGY, MIN_ENERGY, MAX_ENERGY);
+      // На SC03h команда A6 может остановить прошивку — используем поток A3/A4/AF/BE/BD.
       const startPackets = [
         cmdGetState(),
         cmdSetQuality(),
-        cmdSetEnergy(clamp(Number(els.energyInput.value) || 40000, 12000, 0xffff)),
-        cmdApplyEnergy(),
-        cmdLatticeStart(),
+        cmdSetEnergy(energy),
+        cmdSetDrawingMode(),
+        cmdFeedPaper(),
       ];
-      for (const packet of startPackets) {
-        await sendBytes(packet, profile);
-      }
+      for (const packet of startPackets) await sendBytes(packet, profile);
+      await sleep(120);
 
+      const largeJob = rows.length * (PRINT_WIDTH / 8 + 8) > 20000;
+      const rowPause = Math.max(profile.rowPause, largeJob ? 18 : 8);
       for (let index = 0; index < rows.length; index += 1) {
         await sendBytes(rowPacket(rows[index]), profile);
-        if (profile.rowPause > 0) {
-          await sleep(profile.rowPause);
-        }
+        await sleep(rowPause);
         if ((index + 1) % 32 === 0 || index + 1 === rows.length) {
           setStatus(`Печать ${index + 1}/${rows.length}`, "idle");
         }
@@ -2502,35 +2478,11 @@
           await sleep(profile.batchPause);
         }
       }
-
-      const endPackets = [
-        cmdFeedPaper(TEAR_OFF_FEED),
-        cmdSetPaper(),
-        cmdSetPaper(),
-        cmdSetPaper(),
-        cmdLatticeEnd(),
-        cmdGetState(),
-      ];
-      for (const packet of endPackets) {
-        await sendBytes(packet, profile);
+      for (let index = 0; index < TEAR_OFF_COMMANDS; index += 1) {
+        await sendBytes(cmdFeedPaper(), profile);
+        if ((index + 1) % 10 === 0) await sleep(180);
       }
-    }
-
-    function waitForReady(timeoutMs = 5000) {
-      if (readyPromise) return readyPromise;
-      readyPromise = new Promise((resolve, reject) => {
-        readyResolve = resolve;
-        readyReject = reject;
-        setTimeout(() => {
-          if (readyReject === reject) {
-            readyResolve = null;
-            readyReject = null;
-            readyPromise = null;
-            reject(new Error("Принтер не прислал ready"));
-          }
-        }, timeoutMs);
-      });
-      return readyPromise;
+      await sendBytes(cmdGetState(), profile);
     }
 
     async function printCurrentBitmap() {
@@ -2540,22 +2492,18 @@
       printing = true;
       updateUi();
       try {
-        const ready = waitForReady(Math.max(60000, rows.length * 80)).catch((err) => {
-          log(err.message);
-          return null;
-        });
         const estimatedBytes = rows.length * (PRINT_WIDTH / 8 + 8);
         log(`Печать: ${rows.length} строк, примерно ${estimatedBytes} байт, режим ${els.printSpeedSelect.value}`);
+        log("Протокол: Fun Print / SC03h, ширина 384 точки.");
         setStatus("Печать...", "idle");
         await sendPrintJob(rows, profile);
-        await ready;
-        if (!server) {
-          log("Печать прервана: соединение потеряно.");
-          return;
+        await sleep(1500);
+        if (!server || !writeChar || !device?.gatt?.connected) {
+          throw new Error("Соединение потеряно до завершения передачи задания");
         }
         await readBatteryLevel();
         setStatus(connectedStatus(), "ok");
-        log("Задание отправлено.");
+        log("Передача задания завершена. Проверьте отпечаток на ленте.");
       } finally {
         printing = false;
         updateUi();
@@ -2566,10 +2514,6 @@
       server = null;
       writeChar = null;
       notifyChar = null;
-      if (readyReject) readyReject(new Error("Соединение потеряно"));
-      readyResolve = null;
-      readyReject = null;
-      readyPromise = null;
       printing = false;
       updateUi();
       if (reconnecting) return;
