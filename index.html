@@ -815,7 +815,7 @@
     const SERVICE_UUIDS = [0xae30, 0xaf30];
     const WRITE_UUID = 0xae01;
     const NOTIFY_UUID = 0xae02;
-    const TEAR_OFF_COMMANDS = 40;
+    const TEAR_OFF_COMMANDS = 50;
     const BATTERY_SERVICE = 0x180f;
     const BATTERY_CHAR = 0x2a19;
     const PRINT_SPEEDS = {
@@ -1330,7 +1330,7 @@
       for (let y = 0; y < bitmap.height; y += 1) {
         const row = bitmap.rows[y];
         for (let x = 0; x < PRINT_WIDTH; x += 1) {
-          const bit = row[x >> 3] & (1 << (x & 7));
+          const bit = row[x >> 3] & (1 << (7 - (x & 7)));
           const value = bit ? 0 : 255;
           const i = (y * PRINT_WIDTH + x) * 4;
           image.data[i] = value;
@@ -1354,7 +1354,7 @@
         const row = bitmap.rows[y];
         const base = y * w;
         for (let x = 0; x < w; x += 1) {
-          if (row[x >> 3] & (1 << (x & 7))) cov[base + x] = 1;
+          if (row[x >> 3] & (1 << (7 - (x & 7)))) cov[base + x] = 1;
         }
       }
 
@@ -1818,8 +1818,8 @@
       for (let y = 0; y < h; y += 1) {
         const row = new Uint8Array(w / 8);
         for (let x = 0; x < w; x += 1) {
-          // Порядок LSB-first должен совпадать с drawBitmapPreview и drawSimulatedPreview.
-          if (bits[y * w + x]) row[x >> 3] |= 1 << (x & 7);
+          // SC03h / Fun Print: первый (левый) пиксель занимает bit 7.
+          if (bits[y * w + x]) row[x >> 3] |= 1 << (7 - (x & 7));
         }
         rows.push(row);
       }
@@ -2372,8 +2372,10 @@
       setStatus("Открываю канал печати...", "idle");
       writeChar = await service.getCharacteristic(WRITE_UUID);
       notifyChar = await service.getCharacteristic(NOTIFY_UUID);
-      await notifyChar.startNotifications();
+      log(`Канал записи AE01: write=${writeChar.properties.write}, withoutResponse=${writeChar.properties.writeWithoutResponse}`);
       notifyChar.addEventListener("characteristicvaluechanged", onNotification);
+      await notifyChar.startNotifications();
+      log("Канал уведомлений принтера включён.");
 
       batterySupported = true;
       batteryLevel = null;
@@ -2479,8 +2481,8 @@
       const totalBytes = packets.reduce((sum, packet) => sum + packet.length, 0);
       const largeJob = totalBytes > 20000;
       const transfer = {
-        // Все строки 56 байт; остальные команды короче.
-        chunkSize: Math.min(180, Math.max(56, profile.chunkSize)),
+        // Протокол SC03h: максимум 180 байт за BLE-запись.
+        chunkSize: 180,
         chunkPause: Math.max(profile.chunkPause, largeJob ? 25 : 10),
       };
       const burstLimit = 4096;
