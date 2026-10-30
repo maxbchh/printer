@@ -1818,8 +1818,8 @@
       for (let y = 0; y < h; y += 1) {
         const row = new Uint8Array(w / 8);
         for (let x = 0; x < w; x += 1) {
-          // Fun Print / SC03h: левый пиксель записывается в старший бит.
-          if (bits[y * w + x]) row[x >> 3] |= 1 << (7 - (x & 7));
+          // Порядок LSB-first должен совпадать с drawBitmapPreview и drawSimulatedPreview.
+          if (bits[y * w + x]) row[x >> 3] |= 1 << (x & 7);
         }
         rows.push(row);
       }
